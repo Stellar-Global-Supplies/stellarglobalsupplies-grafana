@@ -54,12 +54,13 @@ S3_STORAGE_LOOKBACK_DAYS = 90
 S3_STORAGE_PERIOD        = 86_400       # 1 day in seconds
 
 # ── AWS clients ──────────────────────────────────────────────────────────────
-cloudwatch    = boto3.client("cloudwatch",  region_name=AWS_REGION)
-s3_client     = boto3.client("s3",          region_name=AWS_REGION)
-dynamodb      = boto3.client("dynamodb",    region_name=AWS_REGION)
-lambda_client = boto3.client("lambda",      region_name=AWS_REGION)
-apigw_client  = boto3.client("apigateway",  region_name=AWS_REGION)
-sfn_client    = boto3.client("stepfunctions", region_name=AWS_REGION)
+cloudwatch     = boto3.client("cloudwatch",   region_name=AWS_REGION)
+s3_client      = boto3.client("s3",           region_name=AWS_REGION)
+dynamodb       = boto3.client("dynamodb",     region_name=AWS_REGION)
+lambda_client  = boto3.client("lambda",       region_name=AWS_REGION)
+apigw_client   = boto3.client("apigateway",   region_name=AWS_REGION)   # v1 REST APIs
+apigwv2_client = boto3.client("apigatewayv2", region_name=AWS_REGION)   # v2 HTTP APIs
+sfn_client     = boto3.client("stepfunctions", region_name=AWS_REGION)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -124,16 +125,34 @@ def list_lambda_functions() -> list[str]:
     return fns
 
 
-def list_apigw_apis() -> list[str]:
+def list_apigw_apis() -> list[dict]:
+    """
+    Return list of {id, name, version} dicts covering:
+      - API Gateway v1 REST APIs  (namespace: AWS/ApiGateway, dim: ApiName)
+      - API Gateway v2 HTTP/WebSocket APIs (namespace: AWS/ApiGateway, dim: ApiId)
+    """
     apis = []
+    # v1 REST APIs
     try:
-        # REST APIs (v1)
         paginator = apigw_client.get_paginator("get_rest_apis")
         for page in paginator.paginate():
-            apis.extend(a["id"] for a in page.get("items", []))
-        logger.info("Discovered %d REST APIs", len(apis))
+            for a in page.get("items", []):
+                apis.append({"id": a["id"], "name": a["name"], "version": "v1"})
+        logger.info("Discovered %d v1 REST APIs", sum(1 for a in apis if a["version"] == "v1"))
     except Exception as e:
-        logger.error("Failed to list API Gateway APIs: %s", e, exc_info=True)
+        logger.error("Failed to list API Gateway v1 REST APIs: %s", e, exc_info=True)
+
+    # v2 HTTP / WebSocket APIs
+    try:
+        paginator = apigwv2_client.get_paginator("get_apis")
+        for page in paginator.paginate():
+            for a in page.get("Items", []):
+                apis.append({"id": a["ApiId"], "name": a["Name"], "version": "v2"})
+        logger.info("Discovered %d v2 HTTP/WebSocket APIs", sum(1 for a in apis if a["version"] == "v2"))
+    except Exception as e:
+        logger.error("Failed to list API Gateway v2 HTTP APIs: %s", e, exc_info=True)
+
+    logger.info("Total APIs discovered: %d", len(apis))
     return apis
 
 
@@ -466,16 +485,35 @@ def collect_lambda_metrics(fn: str, now: datetime, state: dict) -> list[dict]:
     return metrics
 
 
-def collect_apigw_metrics(api_id: str, now: datetime, state: dict) -> list[dict]:
-    """API Gateway metrics — 24-hour lookback."""
+def collect_apigw_metrics(api: dict, now: datetime, state: dict) -> list[dict]:
+    """
+    API Gateway metrics — 24-hour lookback.
+    Handles both v1 REST (dim: ApiName) and v2 HTTP/WebSocket (dim: ApiId).
+    """
     metrics = []
     now_ms = int(time.time() * 1000)
+    api_id   = api["id"]
+    api_name = api["name"]
+    version  = api["version"]
     state_key = f"apigw:{api_id}"
-    attrs = {"api_id": api_id, "region": AWS_REGION, "source": "apigateway", "resource": api_id}
+    attrs = {
+        "api_id":      api_id,
+        "api_name":    api_name,
+        "api_version": version,
+        "region":      AWS_REGION,
+        "source":      "apigateway",
+        "resource":    api_name,
+    }
 
     start_time = now - timedelta(seconds=WINDOW_24H_SECONDS)
-    for m in APIGW_METRICS:
+
+    # v1 REST APIs use dimension "ApiName"; v2 HTTP APIs use "ApiId"
+    if version == "v1":
+        dims = [{"Name": "ApiName", "Value": api_name}]
+    else:
         dims = [{"Name": "ApiId", "Value": api_id}]
+
+    for m in APIGW_METRICS:
         dps = fetch_metric(
             "AWS/ApiGateway", m["name"], dims, m["stat"], m["unit"],
             start_time, now,
