@@ -2475,6 +2475,523 @@
           }
         }
       ]
+    },
+    {
+      "guid": "ODMxNDMyMXxWSVp8REFTSEJPQVJEfDMyNjUzMjE",
+      "name": "Web Traffic",
+      "description": "CloudFront web traffic analytics (7-day rolling window)",
+      "widgets": [
+        {
+          "id": "46687222",
+          "title": "Total Requests (7-day)",
+          "layout": {
+            "column": 1,
+            "row": 1,
+            "width": 3,
+            "height": 2
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT latest(`aws.webtraffic.summary.total_requests`) AS 'Total Requests' FROM Metric WHERE source = 'cloudfront-logs' SINCE 1 day ago"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46687223",
+          "title": "Unique IPs (7-day)",
+          "layout": {
+            "column": 4,
+            "row": 1,
+            "width": 3,
+            "height": 2
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT latest(`aws.webtraffic.summary.unique_ips`) AS 'Unique IPs' FROM Metric WHERE source = 'cloudfront-logs' SINCE 1 day ago"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46687224",
+          "title": "Avg Daily Requests",
+          "layout": {
+            "column": 7,
+            "row": 1,
+            "width": 3,
+            "height": 2
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT latest(`aws.webtraffic.summary.avg_daily`) AS 'Avg Daily' FROM Metric WHERE source = 'cloudfront-logs' SINCE 1 day ago"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46687225",
+          "title": "Peak Hour",
+          "layout": {
+            "column": 10,
+            "row": 1,
+            "width": 3,
+            "height": 2
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT latest(`aws.webtraffic.summary.peak_hour`) AS 'Peak Hour' FROM Metric WHERE source = 'cloudfront-logs' SINCE 1 day ago"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46687226",
+          "title": "Traffic Over Time (7-day)",
+          "layout": {
+            "column": 1,
+            "row": 3,
+            "width": 8,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "legend": {
+              "enabled": true
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT sum(`aws.webtraffic.traffic.daily.requests`) FROM Metric WHERE source = 'cloudfront-logs' SINCE 7 days ago TIMESERIES 1 day"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46687227",
+          "title": "Device Split",
+          "layout": {
+            "column": 9,
+            "row": 3,
+            "width": 4,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.pie"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT latest(`aws.webtraffic.devices.pct`) FROM Metric WHERE source = 'cloudfront-logs' FACET device SINCE 1 day ago"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46687228",
+          "title": "Top 10 Pages by Visits",
+          "layout": {
+            "column": 1,
+            "row": 6,
+            "width": 6,
+            "height": 4
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.bar"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT latest(`aws.webtraffic.pages.visits`) AS 'Visits' FROM Metric WHERE source = 'cloudfront-logs' FACET page SINCE 1 day ago LIMIT 10"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46687229",
+          "title": "Geo Distribution (Top Countries)",
+          "layout": {
+            "column": 7,
+            "row": 6,
+            "width": 6,
+            "height": 4
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.bar"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT latest(`aws.webtraffic.geo.requests`) AS 'Requests' FROM Metric WHERE source = 'cloudfront-logs' FACET country SINCE 1 day ago LIMIT 8"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46687230",
+          "title": "Hourly Traffic Pattern",
+          "layout": {
+            "column": 1,
+            "row": 10,
+            "width": 12,
+            "height": 4
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.area"
+          },
+          "rawConfiguration": {
+            "legend": {
+              "enabled": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT latest(`aws.webtraffic.traffic.hourly.requests`) FROM Metric WHERE source = 'cloudfront-logs' FACET hour SINCE 1 day ago"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46687231",
+          "title": "Mobile vs Desktop %",
+          "layout": {
+            "column": 1,
+            "row": 14,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.bar"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT latest(`aws.webtraffic.devices.pct`) AS 'Percentage' FROM Metric WHERE source = 'cloudfront-logs' FACET device SINCE 1 day ago"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46687232",
+          "title": "Web Traffic Summary",
+          "layout": {
+            "column": 7,
+            "row": 14,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.table"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT latest(`aws.webtraffic.summary.total_requests`) AS 'Total Requests', latest(`aws.webtraffic.summary.unique_ips`) AS 'Unique IPs', latest(`aws.webtraffic.summary.avg_daily`) AS 'Avg Daily', latest(`aws.webtraffic.summary.mobile_pct`) AS 'Mobile %', latest(`aws.webtraffic.summary.desktop_pct`) AS 'Desktop %', latest(`aws.webtraffic.summary.peak_hour`) AS 'Peak Hour' FROM Metric WHERE source = 'cloudfront-logs' SINCE 1 day ago"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46687233",
+          "title": "HTTP Status Distribution",
+          "layout": {
+            "column": 1,
+            "row": 17,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.bar"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT latest(`aws.webtraffic.http.status.count`) AS 'Count' FROM Metric WHERE source = 'cloudfront-logs' FACET status_code SINCE 1 day ago"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46687234",
+          "title": "Error Rate %",
+          "layout": {
+            "column": 7,
+            "row": 17,
+            "width": 3,
+            "height": 2
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT latest(`aws.webtraffic.summary.error_rate`) AS 'Error Rate %' FROM Metric WHERE source = 'cloudfront-logs' SINCE 1 day ago"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46687235",
+          "title": "Cache Hit Ratio %",
+          "layout": {
+            "column": 10,
+            "row": 17,
+            "width": 3,
+            "height": 2
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT latest(`aws.webtraffic.summary.cache_hit_pct`) AS 'Cache Hit %' FROM Metric WHERE source = 'cloudfront-logs' SINCE 1 day ago"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46687236",
+          "title": "Browser Distribution",
+          "layout": {
+            "column": 1,
+            "row": 20,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.pie"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT latest(`aws.webtraffic.browsers.pct`) FROM Metric WHERE source = 'cloudfront-logs' FACET browser SINCE 1 day ago"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46687237",
+          "title": "OS Distribution",
+          "layout": {
+            "column": 7,
+            "row": 20,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.pie"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT latest(`aws.webtraffic.os.pct`) FROM Metric WHERE source = 'cloudfront-logs' FACET os SINCE 1 day ago"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46687238",
+          "title": "HTTP Methods",
+          "layout": {
+            "column": 1,
+            "row": 23,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.bar"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT latest(`aws.webtraffic.http.methods.pct`) AS 'Percentage' FROM Metric WHERE source = 'cloudfront-logs' FACET method SINCE 1 day ago"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46687239",
+          "title": "Top 10 Referrers",
+          "layout": {
+            "column": 7,
+            "row": 23,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.table"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT latest(`aws.webtraffic.referrers.visits`) AS 'Visits' FROM Metric WHERE source = 'cloudfront-logs' FACET referer SINCE 1 day ago LIMIT 10"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46687240",
+          "title": "Avg Response Size (bytes)",
+          "layout": {
+            "column": 1,
+            "row": 26,
+            "width": 4,
+            "height": 2
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT latest(`aws.webtraffic.response.avg_size_bytes`) AS 'Avg Response Size' FROM Metric WHERE source = 'cloudfront-logs' SINCE 1 day ago"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46687241",
+          "title": "Avg Response Time (s)",
+          "layout": {
+            "column": 5,
+            "row": 26,
+            "width": 4,
+            "height": 2
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT latest(`aws.webtraffic.response.avg_time_seconds`) AS 'Avg Response Time' FROM Metric WHERE source = 'cloudfront-logs' SINCE 1 day ago"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46687242",
+          "title": "HTTPS Usage %",
+          "layout": {
+            "column": 9,
+            "row": 26,
+            "width": 4,
+            "height": 2
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT latest(`aws.webtraffic.summary.https_pct`) AS 'HTTPS %' FROM Metric WHERE source = 'cloudfront-logs' SINCE 1 day ago"
+              }
+            ]
+          }
+        }
+      ]
     }
   ],
   "variables": []
