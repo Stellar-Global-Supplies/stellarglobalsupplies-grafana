@@ -49,7 +49,7 @@ Your `<REALM>` is shown in Settings → your username → Organizations (e.g. `u
 | GitHub Actions runner | ubuntu-latest |
 
 ---
-
+sg0
 ## Step 1 — Sign up for Splunk Observability Cloud
 
 1. Go to https://www.splunk.com/en_us/products/observability-cloud.html
@@ -69,21 +69,40 @@ Your `<REALM>` is shown in Settings → your username → Organizations (e.g. `u
 4. Save as GitHub secret: `SPLUNK_INGEST_TOKEN`
 
 ---
-
+aYaduqQ0aqK3rcTXp5A4OA
 ## Step 3 — Set up Splunk Cloud for Logs (HEC)
 
 Splunk Observability Cloud free edition bundles a Splunk Cloud instance for log ingestion.
 
+### 3.1 Provision Splunk Cloud
+
 1. In Splunk Observability Cloud, go to **Settings** → **Log Observer** → **Connect to Splunk Cloud**
 2. Follow the wizard — it provisions your Splunk Cloud instance
-3. Once provisioned, open the Splunk Cloud UI:
-   - Go to **Settings** → **Data Inputs** → **HTTP Event Collector** → **New Token**
-   - Name: `cloudwatch-logs`
-   - Source type: `aws:cloudwatch`
-   - Index: `main`
-   - **Disable** indexer acknowledgement (required for this integration)
-4. Copy the token value → save as GitHub secret: `SPLUNK_HEC_TOKEN`
-5. Note your Splunk Cloud hostname (format: `prd-p-xxxxxx.splunkcloud.com`) → save as GitHub secret: `SPLUNK_HEC_HOST`
+3. Once provisioned, you'll see a button to **Open Splunk Cloud** or a URL like `https://prd-p-xxxxxx.splunkcloud.com`
+
+### 3.2 Create HEC Token in Splunk Cloud
+
+1. Open your Splunk Cloud instance URL (e.g. `https://prd-p-xxxxxx.splunkcloud.com`)
+2. Log in with your Splunk credentials
+3. In the top menu, go to **Settings** → **Data Inputs**
+4. Click **HTTP Event Collector (HEC)**
+5. If HEC is not enabled, click **Enable** to turn it on
+6. Click **New Token** (or **Add** → **HTTP Event Collector**)
+7. Fill in the form:
+   - **Name:** `cloudwatch-logs`
+   - **Source type:** `aws:cloudwatch`
+   - **Index:** `main`
+   - **Output group:** Default (or your preferred group)
+8. **Important:** After creating the token, click on the token name to edit it:
+   - Scroll to **Advanced Settings**
+   - **Disable** "Indexer acknowledgement" (required for this integration)
+   - Click **Save**
+9. Copy the **Token** value (shown as a long string) → save as GitHub secret: `SPLUNK_HEC_TOKEN`
+10. Note your Splunk Cloud hostname (format: `prd-p-xxxxxx.splunkcloud.com`) → save as GitHub secret: `SPLUNK_HEC_HOST`
+
+**Alternative path if you can't find HEC:**
+- In Splunk Cloud, use the search bar (top) and type "HTTP Event Collector"
+- Or go to: **Apps** → **Search & Reporting** → **Settings** (gear icon) → **Data Inputs**
 
 ---
 
