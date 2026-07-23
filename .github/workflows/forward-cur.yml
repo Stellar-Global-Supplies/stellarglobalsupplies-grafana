@@ -2,7 +2,7 @@ name: CUR Processing and Forwarding to New Relic
 
 on:
   schedule:
-    - cron: "0 */4 * * *"
+    - cron: "0 */8 * * *"
   workflow_dispatch:
 
 concurrency:
