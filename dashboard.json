@@ -1512,7 +1512,7 @@
                 "accountIds": [
                   8314321
                 ],
-                "query": "SELECT latest(value) AS 'Total Cost $' FROM Metric WHERE metricName = 'aws.cur.summary.monthly_total' AND source = 'cur' SINCE 24 hours ago"
+                "query": "SELECT latest(`aws.cur.summary.monthly_total`) AS 'Total Cost $' FROM Metric WHERE source = 'cur' SINCE 7 days ago"
               }
             ]
           }
@@ -1536,7 +1536,7 @@
                 "accountIds": [
                   8314321
                 ],
-                "query": "SELECT latest(value) AS 'Cost $' FROM Metric WHERE metricName = 'aws.cur.summary.service_cost' AND source = 'cur' FACET attributes.service SINCE 24 hours ago LIMIT 1"
+                "query": "SELECT latest(`aws.cur.summary.service_cost`) AS 'Cost $' FROM Metric WHERE source = 'cur' FACET service SINCE 7 days ago LIMIT 1"
               }
             ]
           }
@@ -1560,7 +1560,7 @@
                 "accountIds": [
                   8314321
                 ],
-                "query": "SELECT uniqueCount(attributes.service) AS 'Services' FROM Metric WHERE metricName = 'aws.cur.summary.service_cost' AND value > 0 AND source = 'cur' SINCE 24 hours ago"
+                "query": "SELECT uniqueCount(service) AS 'Services' FROM Metric WHERE source = 'cur' SINCE 7 days ago"
               }
             ]
           }
@@ -1584,7 +1584,7 @@
                 "accountIds": [
                   8314321
                 ],
-                "query": "SELECT latest(attributes.billing_period) AS 'Period' FROM Metric WHERE metricName = 'aws.cur.summary.monthly_total' AND source = 'cur' SINCE 24 hours ago"
+                "query": "SELECT latest(billing_period) AS 'Period' FROM Metric WHERE source = 'cur' SINCE 7 days ago"
               }
             ]
           }
@@ -1611,7 +1611,7 @@
                 "accountIds": [
                   8314321
                 ],
-                "query": "SELECT latest(value) AS 'Daily Cost $' FROM Metric WHERE metricName = 'aws.cur.daily.total_cost' AND source = 'cur' SINCE 24 hours ago TIMESERIES 1 day"
+                "query": "SELECT latest(`aws.cur.daily.total_cost`) AS 'Daily Cost $' FROM Metric WHERE source = 'cur' SINCE 30 days ago TIMESERIES 1 day"
               }
             ]
           }
@@ -1635,7 +1635,7 @@
                 "accountIds": [
                   8314321
                 ],
-                "query": "SELECT latest(value) FROM Metric WHERE metricName = 'aws.cur.summary.service_cost' AND value > 0 AND source = 'cur' FACET attributes.service_name SINCE 24 hours ago"
+                "query": "SELECT latest(`aws.cur.summary.service_cost`) FROM Metric WHERE source = 'cur' FACET service_name SINCE 7 days ago"
               }
             ]
           }
@@ -1662,7 +1662,7 @@
                 "accountIds": [
                   8314321
                 ],
-                "query": "SELECT latest(value) FROM Metric WHERE metricName = 'aws.cur.daily.service_cost' AND value > 0 AND source = 'cur' FACET attributes.service_name SINCE 24 hours ago TIMESERIES 1 day"
+                "query": "SELECT latest(`aws.cur.daily.service_cost`) FROM Metric WHERE source = 'cur' FACET service_name SINCE 30 days ago TIMESERIES 1 day"
               }
             ]
           }
@@ -1693,7 +1693,7 @@
                 "accountIds": [
                   8314321
                 ],
-                "query": "SELECT latest(value) AS 'Cost $' FROM Metric WHERE metricName = 'aws.cur.summary.service_cost' AND source = 'cur' FACET attributes.service SINCE 24 hours ago"
+                "query": "SELECT latest(`aws.cur.summary.service_cost`) AS 'Cost $' FROM Metric WHERE source = 'cur' FACET service SINCE 7 days ago"
               }
             ]
           }
@@ -1717,7 +1717,7 @@
                 "accountIds": [
                   8314321
                 ],
-                "query": "SELECT latest(attributes.service_name) AS 'Service', latest(value) AS 'Cost (USD)' FROM Metric WHERE metricName = 'aws.cur.summary.service_cost' AND source = 'cur' FACET attributes.service SINCE 24 hours ago LIMIT 50"
+                "query": "SELECT latest(service_name) AS 'Service', latest(`aws.cur.summary.service_cost`) AS 'Cost (USD)' FROM Metric WHERE source = 'cur' FACET service SINCE 7 days ago LIMIT 50"
               }
             ]
           }
@@ -1741,7 +1741,7 @@
                 "accountIds": [
                   8314321
                 ],
-                "query": "SELECT latest(value) AS 'Cost $' FROM Metric WHERE metricName = 'aws.cur.daily.service_cost' AND attributes.service = 'AmazonRoute53' AND source = 'cur' SINCE 24 hours ago TIMESERIES 1 day"
+                "query": "SELECT latest(`aws.cur.daily.service_cost`) AS 'Cost $' FROM Metric WHERE source = 'cur' AND service = 'AmazonRoute53' SINCE 30 days ago TIMESERIES 1 day"
               }
             ]
           }
@@ -1765,7 +1765,7 @@
                 "accountIds": [
                   8314321
                 ],
-                "query": "SELECT latest(value) AS 'Cost $' FROM Metric WHERE metricName = 'aws.cur.daily.service_cost' AND attributes.service = 'AmazonBedrock' AND source = 'cur' SINCE 24 hours ago TIMESERIES 1 day"
+                "query": "SELECT latest(`aws.cur.daily.service_cost`) AS 'Cost $' FROM Metric WHERE source = 'cur' AND service = 'AmazonBedrock' SINCE 30 days ago TIMESERIES 1 day"
               }
             ]
           }
@@ -1789,7 +1789,7 @@
                 "accountIds": [
                   8314321
                 ],
-                "query": "SELECT latest(value) AS 'Cost $' FROM Metric WHERE metricName = 'aws.cur.daily.service_cost' AND attributes.service = 'AmazonCloudWatch' AND source = 'cur' SINCE 24 hours ago TIMESERIES 1 day"
+                "query": "SELECT latest(`aws.cur.daily.service_cost`) AS 'Cost $' FROM Metric WHERE source = 'cur' AND service = 'AmazonCloudWatch' SINCE 30 days ago TIMESERIES 1 day"
               }
             ]
           }
@@ -1813,7 +1813,7 @@
                 "accountIds": [
                   8314321
                 ],
-                "query": "SELECT latest(value) AS 'Cost $' FROM Metric WHERE metricName = 'aws.cur.daily.service_cost' AND attributes.service = 'AmazonS3' AND source = 'cur' SINCE 24 hours ago TIMESERIES 1 day"
+                "query": "SELECT latest(`aws.cur.daily.service_cost`) AS 'Cost $' FROM Metric WHERE source = 'cur' AND service = 'AmazonS3' SINCE 30 days ago TIMESERIES 1 day"
               }
             ]
           }
@@ -1837,7 +1837,7 @@
                 "accountIds": [
                   8314321
                 ],
-                "query": "SELECT latest(value) AS 'Cost $' FROM Metric WHERE metricName = 'aws.cur.daily.service_cost' AND attributes.service = 'AWSSecretsManager' AND source = 'cur' SINCE 24 hours ago TIMESERIES 1 day"
+                "query": "SELECT latest(`aws.cur.daily.service_cost`) AS 'Cost $' FROM Metric WHERE source = 'cur' AND service = 'AWSSecretsManager' SINCE 30 days ago TIMESERIES 1 day"
               }
             ]
           }
@@ -1861,7 +1861,7 @@
                 "accountIds": [
                   8314321
                 ],
-                "query": "SELECT latest(value) AS 'Cost $' FROM Metric WHERE metricName = 'aws.cur.daily.service_cost' AND attributes.service = 'AmazonApiGateway' AND source = 'cur' SINCE 24 hours ago TIMESERIES 1 day"
+                "query": "SELECT latest(`aws.cur.daily.service_cost`) AS 'Cost $' FROM Metric WHERE source = 'cur' AND service = 'AmazonApiGateway' SINCE 30 days ago TIMESERIES 1 day"
               }
             ]
           }
@@ -1892,7 +1892,7 @@
                 "accountIds": [
                   8314321
                 ],
-                "query": "SELECT latest(value) FROM Metric WHERE metricName IN ('aws.cur.tag.app_total_cost','aws.cur.tag.uncategorized_total') AND source = 'cur' FACET attributes.application SINCE 24 hours ago"
+                "query": "SELECT latest(`aws.cur.tag.app_total_cost`) AS 'Tagged', latest(`aws.cur.tag.uncategorized_total`) AS 'Untagged' FROM Metric WHERE source = 'cur' FACET application SINCE 7 days ago"
               }
             ]
           }
@@ -1916,7 +1916,7 @@
                 "accountIds": [
                   8314321
                 ],
-                "query": "SELECT latest(value) AS 'Untagged Cost $' FROM Metric WHERE metricName = 'aws.cur.tag.uncategorized_total' AND source = 'cur' SINCE 24 hours ago"
+                "query": "SELECT latest(`aws.cur.tag.uncategorized_total`) AS 'Untagged Cost $' FROM Metric WHERE source = 'cur' SINCE 7 days ago"
               }
             ]
           }
@@ -1940,7 +1940,7 @@
                 "accountIds": [
                   8314321
                 ],
-                "query": "SELECT sum(value) AS 'Tagged Cost $' FROM Metric WHERE metricName = 'aws.cur.tag.app_total_cost' AND source = 'cur' SINCE 24 hours ago"
+                "query": "SELECT latest(`aws.cur.tag.app_total_cost`) AS 'Tagged Cost $' FROM Metric WHERE source = 'cur' SINCE 7 days ago"
               }
             ]
           }
@@ -1964,7 +1964,7 @@
                 "accountIds": [
                   8314321
                 ],
-                "query": "SELECT latest(value) AS 'Cost $' FROM Metric WHERE metricName = 'aws.cur.tag.uncategorized_service' AND value > 0 AND source = 'cur' FACET attributes.service_name SINCE 24 hours ago"
+                "query": "SELECT latest(`aws.cur.tag.uncategorized_service`) AS 'Cost $' FROM Metric WHERE source = 'cur' FACET service_name SINCE 7 days ago"
               }
             ]
           }
@@ -1988,7 +1988,7 @@
                 "accountIds": [
                   8314321
                 ],
-                "query": "SELECT latest(attributes.service_name) AS 'Service', latest(value) AS 'Cost (USD)' FROM Metric WHERE metricName = 'aws.cur.tag.uncategorized_service' AND source = 'cur' FACET attributes.service SINCE 24 hours ago LIMIT 50"
+                "query": "SELECT latest(service_name) AS 'Service', latest(`aws.cur.tag.uncategorized_service`) AS 'Cost (USD)' FROM Metric WHERE source = 'cur' FACET service SINCE 7 days ago LIMIT 50"
               }
             ]
           }
@@ -2012,7 +2012,7 @@
                 "accountIds": [
                   8314321
                 ],
-                "query": "SELECT latest(value) AS 'Cost $' FROM Metric WHERE metricName = 'aws.cur.tag.app_total_cost' AND source = 'cur' FACET attributes.application SINCE 24 hours ago"
+                "query": "SELECT latest(`aws.cur.tag.app_total_cost`) AS 'Cost $' FROM Metric WHERE source = 'cur' FACET application SINCE 7 days ago"
               }
             ]
           }
@@ -2046,7 +2046,7 @@
                 "accountIds": [
                   8314321
                 ],
-                "query": "SELECT latest(value) FROM Metric WHERE metricName IN ('aws.cur.service.unblended_cost','aws.cur.service.blended_cost') AND source = 'cur' FACET metricName, attributes.service_name SINCE 24 hours ago TIMESERIES 1 day"
+                "query": "SELECT latest(`aws.cur.service.unblended_cost`) AS 'Unblended', latest(`aws.cur.service.blended_cost`) AS 'Blended' FROM Metric WHERE source = 'cur' FACET service_name SINCE 30 days ago TIMESERIES 1 day"
               }
             ]
           }
@@ -2070,7 +2070,7 @@
                 "accountIds": [
                   8314321
                 ],
-                "query": "SELECT latest(value) FROM Metric WHERE metricName = 'aws.cur.service.usage_quantity' AND source = 'cur' FACET attributes.service_name SINCE 24 hours ago TIMESERIES 1 day"
+                "query": "SELECT latest(`aws.cur.service.usage_quantity`) FROM Metric WHERE source = 'cur' FACET service_name SINCE 30 days ago TIMESERIES 1 day"
               }
             ]
           }
@@ -2094,7 +2094,7 @@
                 "accountIds": [
                   8314321
                 ],
-                "query": "SELECT latest(value) AS 'Records' FROM Metric WHERE metricName = 'aws.cur.service.record_count' AND source = 'cur' FACET attributes.service_name SINCE 24 hours ago"
+                "query": "SELECT latest(`aws.cur.service.record_count`) AS 'Records' FROM Metric WHERE source = 'cur' FACET service_name SINCE 7 days ago"
               }
             ]
           }
@@ -2118,7 +2118,7 @@
                 "accountIds": [
                   8314321
                 ],
-                "query": "SELECT sum(value) AS 'Cost $' FROM Metric WHERE metricName = 'aws.cur.service.unblended_cost' AND source = 'cur' FACET attributes.region SINCE 24 hours ago"
+                "query": "SELECT sum(`aws.cur.service.unblended_cost`) AS 'Cost $' FROM Metric WHERE source = 'cur' FACET region SINCE 7 days ago"
               }
             ]
           }
@@ -2142,7 +2142,7 @@
                 "accountIds": [
                   8314321
                 ],
-                "query": "SELECT attributes.date AS 'Date', attributes.service_name AS 'Service', attributes.region AS 'Region', latest(value) AS 'Cost $' FROM Metric WHERE metricName = 'aws.cur.service.unblended_cost' AND source = 'cur' SINCE 24 hours ago FACET attributes.date, attributes.service LIMIT 100"
+                "query": "SELECT date AS 'Date', service_name AS 'Service', region AS 'Region', latest(`aws.cur.service.unblended_cost`) AS 'Cost $' FROM Metric WHERE source = 'cur' SINCE 30 days ago FACET date, service LIMIT 100"
               }
             ]
           }
