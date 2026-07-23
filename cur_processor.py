@@ -166,6 +166,101 @@ def normalize_app_tag(tag: str) -> str | None:
     return re.sub(r'[^a-z0-9_-]', '-', lower).strip('-') or None
 
 
+# ── Resource-ID based app inference ───────────────────────────────────────────
+# AWS CUR lineItem/ResourceId contains the ARN or bare name of the resource.
+# When cost-allocation tags are absent (no resourceTags/* columns), we parse
+# the resource ID using the project's own naming conventions observed across
+# Lambda functions, DynamoDB tables, S3 buckets, and API Gateway names.
+#
+# Rules are evaluated in order; the FIRST match wins.
+# Each rule is (compiled_regex, canonical_app_group).
+# The regex is matched against the lower-cased resource name/ARN segment.
+#
+# Naming conventions seen in state.json / repo:
+#   stellar-oms-*                → oms-app
+#   sgs-quote-app-* / stellar-quote-* → quote-app
+#   stellar-wf-prod-* / stellar-wf-*  → workflow-platform
+#   stellar-observe-prod-* / stellar-observe-* → observe-app
+#   stellar-cleanup-prod-*       → cleanup-automation
+#   stellar-global-prod-* / stellarglobal-ops-* / stellar-global-* → ops-platform
+#   meta-analytics-* / stellar-daily-processor / stellar-report → ops-platform
+#   stellar-auth / stellar-seed-user → ops-platform
+#   stellar-global-costing-bucket / cur / billing → ops-platform (infra)
+RESOURCE_ID_PATTERNS: list[tuple[re.Pattern, str]] = [
+    # OMS — order management service
+    (re.compile(r'stellar[-_]oms',              re.I), 'oms-app'),
+    (re.compile(r'order[-_]management',         re.I), 'oms-app'),
+
+    # Quote app
+    (re.compile(r'sgs[-_]quote',                re.I), 'quote-app'),
+    (re.compile(r'stellar[-_]quote',            re.I), 'quote-app'),
+
+    # Workflow platform (must come before generic 'stellar-wf' catch-all)
+    (re.compile(r'stellar[-_]wf[-_]prod',       re.I), 'workflow-platform'),
+    (re.compile(r'stellar[-_]wf\b',             re.I), 'workflow-platform'),
+    (re.compile(r'workflow[-_]platform',        re.I), 'workflow-platform'),
+
+    # Observe app
+    (re.compile(r'stellar[-_]observe[-_]prod',  re.I), 'observe-app'),
+    (re.compile(r'stellar[-_]observe\b',        re.I), 'observe-app'),
+
+    # Cleanup automation
+    (re.compile(r'stellar[-_]cleanup[-_]prod',  re.I), 'cleanup-automation'),
+    (re.compile(r'stellar[-_]cleanup\b',        re.I), 'cleanup-automation'),
+
+    # Ops / infra platform — catch-all for global/infra resources
+    (re.compile(r'stellar[-_]global[-_]prod',   re.I), 'ops-platform'),
+    (re.compile(r'stellarglobal[-_]ops',        re.I), 'ops-platform'),
+    (re.compile(r'stellar[-_]global\b',         re.I), 'ops-platform'),
+    (re.compile(r'stellarglobal',               re.I), 'ops-platform'),
+    (re.compile(r'meta[-_]analytics',           re.I), 'ops-platform'),
+    (re.compile(r'stellar[-_]daily[-_]processor',re.I),'ops-platform'),
+    (re.compile(r'stellar[-_]report\b',         re.I), 'ops-platform'),
+    (re.compile(r'stellar[-_]auth\b',           re.I), 'ops-platform'),
+    (re.compile(r'stellar[-_]seed',             re.I), 'ops-platform'),
+    (re.compile(r'stellarglobal[-_]costing',    re.I), 'ops-platform'),
+    (re.compile(r'awscost|cur[-_]processor',    re.I), 'ops-platform'),
+]
+
+
+def infer_app_from_resource_id(resource_id: str) -> str | None:
+    """
+    Infer the canonical application group from a CUR lineItem/ResourceId.
+
+    The ResourceId can be:
+      - A full ARN:  arn:aws:lambda:us-east-1:123456789:function:stellar-oms-create-order
+      - A bare name: stellar-oms-create-order
+      - An S3 ARN:   arn:aws:s3:::stellarglobal-costing-bucket
+      - A log group: /aws/lambda/stellar-oms-create-order
+      - Empty string or '-' for shared/global services
+
+    We extract the final name segment from ARNs and match against
+    RESOURCE_ID_PATTERNS.  Returns None if nothing matches (caller will
+    keep the record as 'uncategorized').
+    """
+    if not resource_id or resource_id.strip() in ('', '-'):
+        return None
+
+    rid = resource_id.strip()
+
+    # Extract the meaningful name from an ARN (last ':' segment)
+    if rid.startswith('arn:'):
+        rid = rid.split(':')[-1]
+
+    # For log group paths like /aws/lambda/stellar-oms-create-order
+    # take the last path component
+    if '/' in rid:
+        rid = rid.rstrip('/').split('/')[-1]
+
+    lower = rid.lower()
+
+    for pattern, canonical in RESOURCE_ID_PATTERNS:
+        if pattern.search(lower):
+            return canonical
+
+    return None
+
+
 def get_usage_group(product_code: str, usage_type: str) -> str:
     """Return a logical resource group label for a usage-type string."""
     for pattern, group in USAGE_GROUP_PATTERNS:
@@ -245,19 +340,48 @@ def transform_cur_record(headers: list[str], values: list[str]) -> dict[str, Any
                     row.get('product/region') or '')
     region       = re.sub(r'[a-z]$', '', raw_region) if raw_region else 'global'
 
-    # Application tag — try several common tag column names
-    raw_tag = (row.get('resourceTags/user:Project') or
-               row.get('resourceTags/user:Application') or
-               row.get('resourceTags/user:App') or
-               row.get('resourceTags/user:application') or
-               row.get('resourceTags/user:project') or
-               row.get('resourceTags/user:team') or
-               row.get('resourceTags/user:Team') or '')
+    # ── Application tagging — two-stage resolution ────────────────────────────
+    # Stage 1: cost-allocation tags (present only if activated in AWS billing
+    #          console; columns like resourceTags/user:Application).
+    #          We try every common variant AWS uses in CUR exports.
+    raw_tag = ''
+    for col in (
+        'resourceTags/user:Application',
+        'resourceTags/user:application',
+        'resourceTags/user:App',
+        'resourceTags/user:app',
+        'resourceTags/user:Project',
+        'resourceTags/user:project',
+        'resourceTags/user:Team',
+        'resourceTags/user:team',
+        'resourceTags/user:Service',
+        'resourceTags/user:service',
+        'resourceTags/user:Environment',  # sometimes encodes app context
+    ):
+        val = row.get(col, '')
+        if val and val.strip():
+            raw_tag = val
+            break
+
     application_tag = normalize_app_tag(raw_tag)
+
+    # Stage 2: if no tag resolved, infer from lineItem/ResourceId.
+    # This covers all resources whose cost-allocation tags are either absent
+    # from the CUR (not activated in billing console) or simply unset on the
+    # individual resource, as long as the resource name follows the project's
+    # naming conventions (stellar-oms-*, stellar-wf-prod-*, etc.).
+    resource_id = row.get('lineItem/ResourceId', '')
+    tag_source  = 'tag'
+    if not application_tag:
+        application_tag = infer_app_from_resource_id(resource_id)
+        if application_tag:
+            tag_source = 'resource_id'
 
     return {
         'timestamp':      start_date,
         'applicationTag': application_tag,
+        'tagSource':      tag_source if application_tag else 'none',
+        'resourceId':     resource_id,
         'account':        (row.get('lineItem/UsageAccountId') or
                            row.get('bill/PayerAccountId') or ''),
         'service':        product_code,
@@ -459,15 +583,19 @@ def process_csv_text(csv_text: str, billing_period: dict) -> None:
         logger.warning("No cost records to process")
         return
 
-    # Tag stats
-    tagged   = sum(1 for r in transformed_records if r.get('applicationTag'))
-    untagged = len(transformed_records) - tagged
-    logger.info(f"Tagged records: {tagged}, Untagged: {untagged}")
-
-    # App tag distribution
+    # Tag stats — break down by resolution method so you can see how many
+    # records were resolved via cost-allocation tags vs resource-ID inference
     from collections import Counter
+    source_dist = Counter(r.get('tagSource', 'none') for r in transformed_records)
+    tagged_total = sum(1 for r in transformed_records if r.get('applicationTag'))
+    logger.info(
+        f"Tagging: {tagged_total} resolved "
+        f"({source_dist.get('tag', 0)} via cost-allocation tags, "
+        f"{source_dist.get('resource_id', 0)} via resource-ID inference), "
+        f"{source_dist.get('none', 0)} uncategorized"
+    )
     tag_dist = Counter(r.get('applicationTag') or 'uncategorized' for r in transformed_records)
-    logger.info(f"App tag distribution: {dict(tag_dist)}")
+    logger.info(f"App distribution: {dict(tag_dist)}")
 
     start_raw = billing_period.get('start', '')
     end_raw   = billing_period.get('end', '')
