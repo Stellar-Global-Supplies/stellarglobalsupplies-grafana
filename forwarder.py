@@ -25,11 +25,14 @@ handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"
 logger.addHandler(handler)
 
 # ── Env vars ─────────────────────────────────────────────────────────────────
-NR_LICENSE_KEY  = os.environ["NEW_RELIC_LICENSE_KEY"]          # New Relic ingest license key
-NR_LOGS_URL     = os.environ.get(                              # override for EU: log-api.eu.newrelic.com
-    "NEW_RELIC_LOGS_URL",
-    "https://log-api.newrelic.com/log/v1",
-)
+NR_LICENSE_KEY  = os.environ["NEW_RELIC_LICENSE_KEY"]   # New Relic ingest license key
+# NEW_RELIC_REGION: "us" (default) or "eu"
+# Builds the correct regional endpoint automatically so the same secret works
+# for both US and EU accounts without needing a separate URL variable.
+_NR_REGION      = os.environ.get("NEW_RELIC_REGION", "eu").strip().lower()
+_NR_LOG_HOST    = "log-api.eu.newrelic.com" if _NR_REGION == "eu" else "log-api.newrelic.com"
+NR_LOGS_URL     = os.environ.get("NEW_RELIC_LOGS_URL") or f"https://{_NR_LOG_HOST}/log/v1"
+logger.info("New Relic region=%s  logs endpoint=%s", _NR_REGION, NR_LOGS_URL)
 AWS_REGION      = os.environ.get("AWS_REGION", "us-east-1")
 LOG_GROUP_PREFIX = os.environ.get("LOG_GROUP_PREFIX", "")      # optional filter prefix
 BATCH_SIZE      = int(os.environ.get("BATCH_SIZE") or "500")

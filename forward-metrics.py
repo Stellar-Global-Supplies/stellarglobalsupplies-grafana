@@ -25,11 +25,14 @@ handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"
 logger.addHandler(handler)
 
 # ── Env vars ─────────────────────────────────────────────────────────────────
-NR_LICENSE_KEY  = os.environ["NEW_RELIC_LICENSE_KEY"]          # New Relic ingest license key
-NR_METRICS_URL  = os.environ.get(                              # override for EU: metric-api.eu.newrelic.com
-    "NEW_RELIC_METRICS_URL",
-    "https://metric-api.newrelic.com/metric/v1",
-)
+NR_LICENSE_KEY  = os.environ["NEW_RELIC_LICENSE_KEY"]   # New Relic ingest license key
+# NEW_RELIC_REGION: "us" (default) or "eu"
+# Builds the correct regional endpoint automatically so the same secret works
+# for both US and EU accounts without needing a separate URL variable.
+_NR_REGION      = os.environ.get("NEW_RELIC_REGION", "eu").strip().lower()
+_NR_METRIC_HOST = "metric-api.eu.newrelic.com" if _NR_REGION == "eu" else "metric-api.newrelic.com"
+NR_METRICS_URL  = os.environ.get("NEW_RELIC_METRICS_URL") or f"https://{_NR_METRIC_HOST}/metric/v1"
+logger.info("New Relic region=%s  metrics endpoint=%s", _NR_REGION, NR_METRICS_URL)
 AWS_REGION      = os.environ.get("AWS_REGION", "us-east-1")
 STATE_FILE      = os.environ.get("METRICS_STATE_FILE") or "metrics-state.json"
 LOOKBACK_MINUTES = int(os.environ.get("LOOKBACK_MINUTES") or "10")
