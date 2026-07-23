@@ -30,7 +30,7 @@
                   "accountIds": [
                     8314321
                   ],
-                  "query": "SELECT sum(value) FROM Metric WHERE metricName = 'aws.lambda.Invocations.Sum' FACET function_name SINCE 24 hours ago TIMESERIES AUTO"
+                  "query": "SELECT sum(`aws.lambda.Invocations.Sum`) FROM Metric FACET function_name SINCE 24 hours ago TIMESERIES AUTO"
                 }
               ],
               "platformOptions": {
@@ -60,7 +60,7 @@
                   "accountIds": [
                     8314321
                   ],
-                  "query": "SELECT sum(value) FROM Metric WHERE metricName = 'aws.lambda.Errors.Sum' FACET function_name SINCE 24 hours ago TIMESERIES AUTO"
+                  "query": "SELECT sum(`aws.lambda.Errors.Sum`) FROM Metric FACET function_name SINCE 24 hours ago TIMESERIES AUTO"
                 }
               ],
               "platformOptions": {
@@ -87,7 +87,7 @@
                   "accountIds": [
                     8314321
                   ],
-                  "query": "SELECT sum(if(metricName = 'aws.lambda.Errors.Sum', value, 0)) / sum(if(metricName = 'aws.lambda.Invocations.Sum', value, 1)) * 100 AS 'Error Rate %' FROM Metric WHERE metricName IN ('aws.lambda.Errors.Sum', 'aws.lambda.Invocations.Sum') FACET function_name SINCE 24 hours ago"
+                  "query": "SELECT sum(`aws.lambda.Errors.Sum`) / sum(`aws.lambda.Invocations.Sum`) * 100 AS 'Error Rate %' FROM Metric FACET function_name SINCE 24 hours ago"
                 }
               ]
             }
@@ -114,7 +114,7 @@
                   "accountIds": [
                     8314321
                   ],
-                  "query": "SELECT average(value) FROM Metric WHERE metricName = 'aws.lambda.Duration.Average' FACET function_name SINCE 24 hours ago TIMESERIES AUTO"
+                  "query": "SELECT average(`aws.lambda.Duration.Average`) FROM Metric FACET function_name SINCE 24 hours ago TIMESERIES AUTO"
                 }
               ]
             }
@@ -138,7 +138,7 @@
                   "accountIds": [
                     8314321
                   ],
-                  "query": "SELECT sum(value) FROM Metric WHERE metricName = 'aws.lambda.Throttles.Sum' FACET function_name SINCE 24 hours ago TIMESERIES AUTO"
+                  "query": "SELECT sum(`aws.lambda.Throttles.Sum`) FROM Metric FACET function_name SINCE 24 hours ago TIMESERIES AUTO"
                 }
               ]
             }
@@ -162,7 +162,7 @@
                   "accountIds": [
                     8314321
                   ],
-                  "query": "SELECT max(value) FROM Metric WHERE metricName = 'aws.lambda.ConcurrentExecutions.Maximum' FACET function_name SINCE 24 hours ago TIMESERIES AUTO"
+                  "query": "SELECT max(`aws.lambda.ConcurrentExecutions.Maximum`) FROM Metric FACET function_name SINCE 24 hours ago TIMESERIES AUTO"
                 }
               ]
             }
@@ -186,7 +186,7 @@
                   "accountIds": [
                     8314321
                   ],
-                  "query": "SELECT sum(value) FROM Metric WHERE metricName = 'aws.apigateway.Count.Sum' FACET api_id SINCE 24 hours ago TIMESERIES AUTO"
+                  "query": "SELECT sum(`aws.apigateway.Count.Sum`) FROM Metric FACET api_id SINCE 24 hours ago TIMESERIES AUTO"
                 }
               ]
             }
@@ -210,7 +210,7 @@
                   "accountIds": [
                     8314321
                   ],
-                  "query": "SELECT sum(value) FROM Metric WHERE metricName = 'aws.apigateway.4XXError.Sum' FACET api_id SINCE 24 hours ago TIMESERIES AUTO"
+                  "query": "SELECT sum(`aws.apigateway.4XXError.Sum`) FROM Metric FACET api_id SINCE 24 hours ago TIMESERIES AUTO"
                 }
               ]
             }
@@ -234,7 +234,7 @@
                   "accountIds": [
                     8314321
                   ],
-                  "query": "SELECT sum(value) FROM Metric WHERE metricName = 'aws.apigateway.5XXError.Sum' FACET api_id SINCE 24 hours ago TIMESERIES AUTO"
+                  "query": "SELECT sum(`aws.apigateway.5XXError.Sum`) FROM Metric FACET api_id SINCE 24 hours ago TIMESERIES AUTO"
                 }
               ]
             }
@@ -258,7 +258,7 @@
                   "accountIds": [
                     8314321
                   ],
-                  "query": "SELECT average(value) FROM Metric WHERE metricName = 'aws.apigateway.Latency.Average' FACET api_id SINCE 24 hours ago TIMESERIES AUTO"
+                  "query": "SELECT average(`aws.apigateway.Latency.Average`) FROM Metric FACET api_id SINCE 24 hours ago TIMESERIES AUTO"
                 }
               ]
             }
@@ -282,7 +282,7 @@
                   "accountIds": [
                     8314321
                   ],
-                  "query": "SELECT average(value) FROM Metric WHERE metricName = 'aws.apigateway.IntegrationLatency.Average' FACET api_id SINCE 24 hours ago TIMESERIES AUTO"
+                  "query": "SELECT average(`aws.apigateway.IntegrationLatency.Average`) FROM Metric FACET api_id SINCE 24 hours ago TIMESERIES AUTO"
                 }
               ]
             }
@@ -292,11 +292,11 @@
       {
         "guid": "ODMxNDMyMXxWSVp8REFTSEJPQVJEfDMyNjQ0NzU",
         "name": "S3",
-        "description": "S3 bucket storage (lifetime) and request metrics (24h)",
+        "description": "S3 bucket storage (direct enumeration) and request metrics (24h)",
         "widgets": [
           {
             "id": "46675048",
-            "title": "Bucket Size — Latest (bytes)  [lifetime metric]",
+            "title": "Bucket Size — Latest (bytes)  [direct enumeration]",
             "layout": {
               "column": 1,
               "row": 1,
@@ -313,14 +313,14 @@
                   "accountIds": [
                     8314321
                   ],
-                  "query": "SELECT latest(value) FROM Metric WHERE metricName = 'aws.s3.BucketSizeBytes.Average' FACET bucket SINCE 90 days ago"
+                  "query": "SELECT latest(`aws.s3.BucketSizeBytes.Direct`) FROM Metric FACET bucket SINCE 1 day ago"
                 }
               ]
             }
           },
           {
             "id": "46675049",
-            "title": "Total Objects per Bucket — Latest  [lifetime metric]",
+            "title": "Total Objects per Bucket — Latest  [direct enumeration]",
             "layout": {
               "column": 7,
               "row": 1,
@@ -337,7 +337,7 @@
                   "accountIds": [
                     8314321
                   ],
-                  "query": "SELECT latest(value) FROM Metric WHERE metricName = 'aws.s3.NumberOfObjects.Average' FACET bucket SINCE 90 days ago"
+                  "query": "SELECT latest(`aws.s3.NumberOfObjects.Direct`) FROM Metric FACET bucket SINCE 1 day ago"
                 }
               ]
             }
@@ -361,7 +361,7 @@
                   "accountIds": [
                     8314321
                   ],
-                  "query": "SELECT sum(value) FROM Metric WHERE metricName = 'aws.s3.GetRequests.Sum' FACET bucket SINCE 24 hours ago TIMESERIES AUTO"
+                  "query": "SELECT sum(`aws.s3.GetRequests.Sum`) FROM Metric FACET bucket SINCE 24 hours ago TIMESERIES AUTO"
                 }
               ]
             }
@@ -385,7 +385,7 @@
                   "accountIds": [
                     8314321
                   ],
-                  "query": "SELECT sum(value) FROM Metric WHERE metricName = 'aws.s3.PutRequests.Sum' FACET bucket SINCE 24 hours ago TIMESERIES AUTO"
+                  "query": "SELECT sum(`aws.s3.PutRequests.Sum`) FROM Metric FACET bucket SINCE 24 hours ago TIMESERIES AUTO"
                 }
               ]
             }
@@ -409,7 +409,7 @@
                   "accountIds": [
                     8314321
                   ],
-                  "query": "SELECT sum(value) FROM Metric WHERE metricName = 'aws.s3.DeleteRequests.Sum' FACET bucket SINCE 24 hours ago TIMESERIES AUTO"
+                  "query": "SELECT sum(`aws.s3.DeleteRequests.Sum`) FROM Metric FACET bucket SINCE 24 hours ago TIMESERIES AUTO"
                 }
               ]
             }
@@ -433,7 +433,7 @@
                   "accountIds": [
                     8314321
                   ],
-                  "query": "SELECT sum(value) FROM Metric WHERE metricName = 'aws.s3.4xxErrors.Sum' FACET bucket SINCE 24 hours ago TIMESERIES AUTO"
+                  "query": "SELECT sum(`aws.s3.4xxErrors.Sum`) FROM Metric FACET bucket SINCE 24 hours ago TIMESERIES AUTO"
                 }
               ]
             }
@@ -457,7 +457,7 @@
                   "accountIds": [
                     8314321
                   ],
-                  "query": "SELECT sum(value) FROM Metric WHERE metricName = 'aws.s3.5xxErrors.Sum' FACET bucket SINCE 24 hours ago TIMESERIES AUTO"
+                  "query": "SELECT sum(`aws.s3.5xxErrors.Sum`) FROM Metric FACET bucket SINCE 24 hours ago TIMESERIES AUTO"
                 }
               ]
             }
@@ -488,7 +488,7 @@
                   "accountIds": [
                     8314321
                   ],
-                  "query": "SELECT sum(value) FROM Metric WHERE metricName = 'aws.dynamodb.ConsumedReadCapacityUnits.Sum' FACET table SINCE 24 hours ago TIMESERIES AUTO"
+                  "query": "SELECT sum(`aws.dynamodb.ConsumedReadCapacityUnits.Sum`) FROM Metric FACET table SINCE 24 hours ago TIMESERIES AUTO"
                 }
               ]
             }
@@ -512,7 +512,7 @@
                   "accountIds": [
                     8314321
                   ],
-                  "query": "SELECT sum(value) FROM Metric WHERE metricName = 'aws.dynamodb.ConsumedWriteCapacityUnits.Sum' FACET table SINCE 24 hours ago TIMESERIES AUTO"
+                  "query": "SELECT sum(`aws.dynamodb.ConsumedWriteCapacityUnits.Sum`) FROM Metric FACET table SINCE 24 hours ago TIMESERIES AUTO"
                 }
               ]
             }
@@ -536,7 +536,7 @@
                   "accountIds": [
                     8314321
                   ],
-                  "query": "SELECT sum(value) FROM Metric WHERE metricName = 'aws.dynamodb.ThrottledRequests.Sum' FACET table SINCE 24 hours ago TIMESERIES AUTO"
+                  "query": "SELECT sum(`aws.dynamodb.ThrottledRequests.Sum`) FROM Metric FACET table SINCE 24 hours ago TIMESERIES AUTO"
                 }
               ]
             }
@@ -560,7 +560,7 @@
                   "accountIds": [
                     8314321
                   ],
-                  "query": "SELECT sum(value) FROM Metric WHERE metricName = 'aws.dynamodb.ReadThrottleEvents.Sum' FACET table SINCE 24 hours ago TIMESERIES AUTO"
+                  "query": "SELECT sum(`aws.dynamodb.ReadThrottleEvents.Sum`) FROM Metric FACET table SINCE 24 hours ago TIMESERIES AUTO"
                 }
               ]
             }
@@ -584,7 +584,7 @@
                   "accountIds": [
                     8314321
                   ],
-                  "query": "SELECT sum(value) FROM Metric WHERE metricName = 'aws.dynamodb.WriteThrottleEvents.Sum' FACET table SINCE 24 hours ago TIMESERIES AUTO"
+                  "query": "SELECT sum(`aws.dynamodb.WriteThrottleEvents.Sum`) FROM Metric FACET table SINCE 24 hours ago TIMESERIES AUTO"
                 }
               ]
             }
@@ -608,7 +608,7 @@
                   "accountIds": [
                     8314321
                   ],
-                  "query": "SELECT average(value) FROM Metric WHERE metricName = 'aws.dynamodb.SuccessfulRequestLatency.Average' FACET table SINCE 24 hours ago TIMESERIES AUTO"
+                  "query": "SELECT average(`aws.dynamodb.SuccessfulRequestLatency.Average`) FROM Metric FACET table SINCE 24 hours ago TIMESERIES AUTO"
                 }
               ]
             }
@@ -632,7 +632,7 @@
                   "accountIds": [
                     8314321
                   ],
-                  "query": "SELECT sum(value) FROM Metric WHERE metricName = 'aws.dynamodb.SystemErrors.Sum' FACET table SINCE 24 hours ago"
+                  "query": "SELECT sum(`aws.dynamodb.SystemErrors.Sum`) FROM Metric FACET table SINCE 24 hours ago"
                 }
               ]
             }
@@ -656,7 +656,7 @@
                   "accountIds": [
                     8314321
                   ],
-                  "query": "SELECT sum(value) FROM Metric WHERE metricName = 'aws.dynamodb.UserErrors.Sum' FACET table SINCE 24 hours ago"
+                  "query": "SELECT sum(`aws.dynamodb.UserErrors.Sum`) FROM Metric FACET table SINCE 24 hours ago"
                 }
               ]
             }
@@ -680,7 +680,7 @@
                   "accountIds": [
                     8314321
                   ],
-                  "query": "SELECT average(value) FROM Metric WHERE metricName IN ('aws.dynamodb.ProvisionedReadCapacityUnits.Average','aws.dynamodb.ConsumedReadCapacityUnits.Sum') FACET metricName, attributes.table SINCE 24 hours ago TIMESERIES AUTO"
+                  "query": "SELECT average(`aws.dynamodb.ProvisionedReadCapacityUnits.Average`) AS 'Provisioned Read', average(`aws.dynamodb.ConsumedReadCapacityUnits.Sum`) AS 'Consumed Read' FROM Metric FACET table SINCE 24 hours ago TIMESERIES AUTO"
                 }
               ]
             }
@@ -704,7 +704,7 @@
                   "accountIds": [
                     8314321
                   ],
-                  "query": "SELECT average(value) FROM Metric WHERE metricName IN ('aws.dynamodb.ProvisionedWriteCapacityUnits.Average','aws.dynamodb.ConsumedWriteCapacityUnits.Sum') FACET metricName, attributes.table SINCE 24 hours ago TIMESERIES AUTO"
+                  "query": "SELECT average(`aws.dynamodb.ProvisionedWriteCapacityUnits.Average`) AS 'Provisioned Write', average(`aws.dynamodb.ConsumedWriteCapacityUnits.Sum`) AS 'Consumed Write' FROM Metric FACET table SINCE 24 hours ago TIMESERIES AUTO"
                 }
               ]
             }
@@ -886,7 +886,7 @@
                   "accountIds": [
                     8314321
                   ],
-                  "query": "SELECT sum(value) FROM Metric WHERE metricName = 'aws.stepfunctions.ExecutionsStarted.Sum' FACET state_machine_name SINCE 24 hours ago TIMESERIES AUTO"
+                  "query": "SELECT sum(`aws.stepfunctions.ExecutionsStarted.Sum`) FROM Metric FACET state_machine_name SINCE 24 hours ago TIMESERIES AUTO"
                 }
               ]
             }
@@ -910,7 +910,7 @@
                   "accountIds": [
                     8314321
                   ],
-                  "query": "SELECT sum(value) FROM Metric WHERE metricName = 'aws.stepfunctions.ExecutionsSucceeded.Sum' FACET state_machine_name SINCE 24 hours ago TIMESERIES AUTO"
+                  "query": "SELECT sum(`aws.stepfunctions.ExecutionsSucceeded.Sum`) FROM Metric FACET state_machine_name SINCE 24 hours ago TIMESERIES AUTO"
                 }
               ]
             }
@@ -934,7 +934,7 @@
                   "accountIds": [
                     8314321
                   ],
-                  "query": "SELECT sum(value) FROM Metric WHERE metricName = 'aws.stepfunctions.ExecutionsFailed.Sum' FACET state_machine_name SINCE 24 hours ago TIMESERIES AUTO"
+                  "query": "SELECT sum(`aws.stepfunctions.ExecutionsFailed.Sum`) FROM Metric FACET state_machine_name SINCE 24 hours ago TIMESERIES AUTO"
                 }
               ]
             }
@@ -958,7 +958,7 @@
                   "accountIds": [
                     8314321
                   ],
-                  "query": "SELECT sum(if(metricName = 'aws.stepfunctions.ExecutionsSucceeded.Sum', value, 0)) / sum(if(metricName = 'aws.stepfunctions.ExecutionsStarted.Sum', value, 1)) * 100 AS 'Success Rate %' FROM Metric WHERE metricName IN ('aws.stepfunctions.ExecutionsSucceeded.Sum','aws.stepfunctions.ExecutionsStarted.Sum') FACET state_machine_name SINCE 24 hours ago"
+                  "query": "SELECT sum(`aws.stepfunctions.ExecutionsSucceeded.Sum`) / sum(`aws.stepfunctions.ExecutionsStarted.Sum`) * 100 AS 'Success Rate %' FROM Metric FACET state_machine_name SINCE 24 hours ago"
                 }
               ]
             }
@@ -982,7 +982,7 @@
                   "accountIds": [
                     8314321
                   ],
-                  "query": "SELECT sum(value) FROM Metric WHERE metricName IN ('aws.stepfunctions.ExecutionsAborted.Sum','aws.stepfunctions.ExecutionsTimedOut.Sum') FACET metricName, attributes.state_machine_name SINCE 24 hours ago"
+                  "query": "SELECT sum(`aws.stepfunctions.ExecutionsAborted.Sum`) AS 'Aborted', sum(`aws.stepfunctions.ExecutionsTimedOut.Sum`) AS 'Timed Out' FROM Metric FACET state_machine_name SINCE 24 hours ago"
                 }
               ]
             }
@@ -1006,7 +1006,7 @@
                   "accountIds": [
                     8314321
                   ],
-                  "query": "SELECT sum(value) FROM Metric WHERE metricName = 'aws.stepfunctions.ExecutionThrottled.Sum' FACET state_machine_name SINCE 24 hours ago TIMESERIES AUTO"
+                  "query": "SELECT sum(`aws.stepfunctions.ExecutionThrottled.Sum`) FROM Metric FACET state_machine_name SINCE 24 hours ago TIMESERIES AUTO"
                 }
               ]
             }
@@ -1030,7 +1030,7 @@
                   "accountIds": [
                     8314321
                   ],
-                  "query": "SELECT average(value) FROM Metric WHERE metricName = 'aws.stepfunctions.ExecutionTime.Average' FACET state_machine_name SINCE 24 hours ago TIMESERIES AUTO"
+                  "query": "SELECT average(`aws.stepfunctions.ExecutionTime.Average`) FROM Metric FACET state_machine_name SINCE 24 hours ago TIMESERIES AUTO"
                 }
               ]
             }
@@ -1054,7 +1054,7 @@
                   "accountIds": [
                     8314321
                   ],
-                  "query": "SELECT sum(if(metricName='aws.stepfunctions.ExecutionsStarted.Sum',value,0)) AS 'Started', sum(if(metricName='aws.stepfunctions.ExecutionsSucceeded.Sum',value,0)) AS 'Succeeded', sum(if(metricName='aws.stepfunctions.ExecutionsFailed.Sum',value,0)) AS 'Failed', sum(if(metricName='aws.stepfunctions.ExecutionsAborted.Sum',value,0)) AS 'Aborted', sum(if(metricName='aws.stepfunctions.ExecutionsTimedOut.Sum',value,0)) AS 'Timed Out' FROM Metric WHERE metricName LIKE 'aws.stepfunctions.%' SINCE 24 hours ago"
+                  "query": "SELECT sum(`aws.stepfunctions.ExecutionsStarted.Sum`) AS 'Started', sum(`aws.stepfunctions.ExecutionsSucceeded.Sum`) AS 'Succeeded', sum(`aws.stepfunctions.ExecutionsFailed.Sum`) AS 'Failed', sum(`aws.stepfunctions.ExecutionsAborted.Sum`) AS 'Aborted', sum(`aws.stepfunctions.ExecutionsTimedOut.Sum`) AS 'Timed Out' FROM Metric SINCE 24 hours ago"
                 }
               ]
             }

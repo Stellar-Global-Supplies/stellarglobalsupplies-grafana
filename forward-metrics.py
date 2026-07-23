@@ -174,14 +174,14 @@ def list_step_functions() -> list[dict]:
 # CloudWatch metric definitions
 # ─────────────────────────────────────────────────────────────────────────────
 
-# S3 storage: published daily — fetched with S3_STORAGE_PERIOD (86400s)
-S3_STORAGE_METRICS = [
-    {"name": "BucketSizeBytes",  "stat": "Average", "unit": "Bytes"},
-    {"name": "NumberOfObjects",  "stat": "Average", "unit": "Count"},
-]
+# S3 storage metrics are fetched directly via ListObjectsV2 (not CloudWatch)
+# because CW BucketSizeBytes / NumberOfObjects requires S3 Storage Lens or
+# request-metrics to be enabled, which is often not the case.
+# S3_STORAGE_METRICS definition removed — replaced by get_bucket_size_direct().
 
 # S3 request metrics: real-time, use standard METRICS_PERIOD
 S3_REQUEST_METRICS = [
+    {"name": "AllRequests",      "stat": "Sum", "unit": "Count"},
     {"name": "GetRequests",      "stat": "Sum", "unit": "Count"},
     {"name": "PutRequests",      "stat": "Sum", "unit": "Count"},
     {"name": "HeadRequests",     "stat": "Sum", "unit": "Count"},
@@ -336,52 +336,70 @@ def push_to_nr_metrics(payload: list[dict]) -> None:
 # Per-service metric collectors
 # ─────────────────────────────────────────────────────────────────────────────
 
+def get_bucket_size_direct(bucket: str) -> tuple[int, int]:
+    """
+    Enumerate a bucket's total size and object count directly via ListObjectsV2.
+
+    This is the reliable alternative to CloudWatch BucketSizeBytes /
+    NumberOfObjects, which requires S3 Storage Lens or per-bucket request
+    metrics to be enabled (often not configured).  ListObjectsV2 always works
+    as long as the IAM role has s3:ListBucket permission.
+
+    Returns (total_size_bytes, object_count).
+    """
+    total_size = 0
+    object_count = 0
+    paginator = s3_client.get_paginator("list_objects_v2")
+    try:
+        for page in paginator.paginate(Bucket=bucket):
+            for obj in page.get("Contents", []):
+                total_size += obj.get("Size", 0)
+                object_count += 1
+    except ClientError as e:
+        code = e.response["Error"]["Code"]
+        if code in ("NoSuchBucket", "AccessDenied"):
+            logger.warning("S3 %s: skipping size enumeration — %s", bucket, code)
+        else:
+            logger.error("S3 %s: ListObjectsV2 failed — %s", bucket, e)
+    return total_size, object_count
+
+
 def collect_s3_metrics(bucket: str, now: datetime, state: dict) -> list[dict]:
     """
     S3 storage metrics (BucketSizeBytes, NumberOfObjects):
-      - AWS publishes these ONCE PER DAY to CloudWatch.
-      - We use a 90-day lookback + 86400-second period so we always capture
-        the latest daily value regardless of when the action runs.
+      - Fetched directly via ListObjectsV2 (accurate, no CloudWatch dependency).
+      - CloudWatch BucketSizeBytes / NumberOfObjects requires S3 Storage Lens
+        or per-bucket request metrics which are rarely enabled — hence the
+        original CW-based approach returned 0 datapoints.
 
-    S3 request metrics:
-      - Real-time; use standard 24h window.
+    S3 request metrics (AllRequests, GetRequests, PutRequests, …):
+      - Still fetched from CloudWatch with a 24h lookback + FilterId=EntireBucket.
     """
     metrics = []
     now_ms = int(time.time() * 1000)
     state_key = f"s3:{bucket}"
     attrs = {"bucket": bucket, "region": AWS_REGION, "source": "s3", "resource": bucket}
 
-    # ── Storage metrics: lifetime / 90-day window, daily period ──────────────
-    storage_start = now - timedelta(days=S3_STORAGE_LOOKBACK_DAYS)
-    for m in S3_STORAGE_METRICS:
-        dims = [{"Name": "BucketName", "Value": bucket}]
-        if m["name"] == "BucketSizeBytes":
-            dims.append({"Name": "StorageType", "Value": "StandardStorage"})
-        else:
-            dims.append({"Name": "StorageType", "Value": "AllStorageTypes"})
+    # ── Storage metrics: direct S3 API enumeration ────────────────────────────
+    logger.info("S3 %s: enumerating size via ListObjectsV2 …", bucket)
+    total_size_bytes, object_count = get_bucket_size_direct(bucket)
+    logger.info("S3 %s: size=%d bytes  objects=%d", bucket, total_size_bytes, object_count)
 
-        dps = fetch_metric(
-            "AWS/S3", m["name"], dims, m["stat"], m["unit"],
-            storage_start, now,
-            period=S3_STORAGE_PERIOD,
-        )
-        if dps:
-            # Take the most recent datapoint so Grafana always shows current value
-            latest = dps[-1]
-            ts = int(latest["Timestamp"].timestamp() * 1000)
-            metrics.append(build_metric_object(
-                f"aws.s3.{m['name']}.{m['stat']}",
-                latest[m["stat"]], ts, attrs,
-                interval_ms=S3_STORAGE_PERIOD * 1000,
-            ))
-            logger.info("S3 %s %s: latest value=%.0f at %s",
-                        bucket, m["name"], latest[m["stat"]], latest["Timestamp"])
-        else:
-            logger.warning(
-                "S3 %s %s: no CW datapoints in 90-day window — "
-                "enable S3 Storage Lens or request metrics if needed.",
-                bucket, m["name"],
-            )
+    # Emit under the same metric names the dashboard queries (just Direct source)
+    metrics.append(build_metric_object(
+        "aws.s3.BucketSizeBytes.Direct",
+        float(total_size_bytes),
+        now_ms,
+        attrs,
+        interval_ms=S3_STORAGE_PERIOD * 1000,   # daily cadence
+    ))
+    metrics.append(build_metric_object(
+        "aws.s3.NumberOfObjects.Direct",
+        float(object_count),
+        now_ms,
+        attrs,
+        interval_ms=S3_STORAGE_PERIOD * 1000,
+    ))
 
     # ── Request metrics: 24h window, standard period ──────────────────────────
     req_start = now - timedelta(seconds=WINDOW_24H_SECONDS)
