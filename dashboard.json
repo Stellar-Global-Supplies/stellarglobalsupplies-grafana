@@ -10,7 +10,7 @@
       "widgets": [
         {
           "id": "46687123",
-          "title": "Lambda — Invocations (last 24h)",
+          "title": "Lambda \u2014 Invocations (last 24h)",
           "layout": {
             "column": 1,
             "row": 1,
@@ -40,7 +40,7 @@
         },
         {
           "id": "46687124",
-          "title": "Lambda — Errors (last 24h)",
+          "title": "Lambda \u2014 Errors (last 24h)",
           "layout": {
             "column": 5,
             "row": 1,
@@ -70,7 +70,7 @@
         },
         {
           "id": "46687125",
-          "title": "Lambda — Error Rate %",
+          "title": "Lambda \u2014 Error Rate %",
           "layout": {
             "column": 9,
             "row": 1,
@@ -94,7 +94,7 @@
         },
         {
           "id": "46687126",
-          "title": "Lambda — Avg Duration (ms)",
+          "title": "Lambda \u2014 Avg Duration (ms)",
           "layout": {
             "column": 1,
             "row": 4,
@@ -121,7 +121,7 @@
         },
         {
           "id": "46687127",
-          "title": "Lambda — Throttles",
+          "title": "Lambda \u2014 Throttles",
           "layout": {
             "column": 5,
             "row": 4,
@@ -145,7 +145,7 @@
         },
         {
           "id": "46687128",
-          "title": "Lambda — Concurrent Executions (max)",
+          "title": "Lambda \u2014 Concurrent Executions (max)",
           "layout": {
             "column": 9,
             "row": 4,
@@ -169,7 +169,7 @@
         },
         {
           "id": "46687129",
-          "title": "API Gateway — Request Count",
+          "title": "API Gateway \u2014 Request Count",
           "layout": {
             "column": 1,
             "row": 7,
@@ -193,7 +193,7 @@
         },
         {
           "id": "46687130",
-          "title": "API Gateway — 4XX Errors",
+          "title": "API Gateway \u2014 4XX Errors",
           "layout": {
             "column": 5,
             "row": 7,
@@ -217,7 +217,7 @@
         },
         {
           "id": "46687131",
-          "title": "API Gateway — 5XX Errors",
+          "title": "API Gateway \u2014 5XX Errors",
           "layout": {
             "column": 9,
             "row": 7,
@@ -241,7 +241,7 @@
         },
         {
           "id": "46687132",
-          "title": "API Gateway — Latency (ms)",
+          "title": "API Gateway \u2014 Latency (ms)",
           "layout": {
             "column": 1,
             "row": 10,
@@ -265,7 +265,7 @@
         },
         {
           "id": "46687133",
-          "title": "API Gateway — Integration Latency (ms)",
+          "title": "API Gateway \u2014 Integration Latency (ms)",
           "layout": {
             "column": 7,
             "row": 10,
@@ -296,7 +296,7 @@
       "widgets": [
         {
           "id": "46687134",
-          "title": "Bucket Size — Latest (bytes)  [direct enumeration]",
+          "title": "Bucket Size \u2014 Latest (bytes)  [direct enumeration]",
           "layout": {
             "column": 1,
             "row": 1,
@@ -320,7 +320,7 @@
         },
         {
           "id": "46687135",
-          "title": "Total Objects per Bucket — Latest  [direct enumeration]",
+          "title": "Total Objects per Bucket \u2014 Latest  [direct enumeration]",
           "layout": {
             "column": 7,
             "row": 1,
@@ -1392,7 +1392,7 @@
         },
         {
           "id": "46687178",
-          "title": "BGWriter — Checkpoints (last 24h)",
+          "title": "BGWriter \u2014 Checkpoints (last 24h)",
           "layout": {
             "column": 1,
             "row": 16,
@@ -1416,7 +1416,7 @@
         },
         {
           "id": "46687179",
-          "title": "BGWriter — Buffer Activity (last 24h)",
+          "title": "BGWriter \u2014 Buffer Activity (last 24h)",
           "layout": {
             "column": 7,
             "row": 16,
@@ -1440,7 +1440,7 @@
         },
         {
           "id": "46687180",
-          "title": "Top 10 Slowest Queries — Mean Exec Time (ms)",
+          "title": "Top 10 Slowest Queries \u2014 Mean Exec Time (ms)",
           "layout": {
             "column": 1,
             "row": 19,
@@ -1512,7 +1512,7 @@
                 "accountIds": [
                   8314321
                 ],
-                "query": "SELECT latest(`aws.cur.summary.monthly_total`) AS 'Total Cost $' FROM Metric WHERE source = 'cur' SINCE 7 days ago"
+                "query": "SELECT sum(`aws.cur.summary.monthly_total`) AS 'Total Cost $' FROM Metric WHERE source = 'cur' AND file = 'summary' SINCE 2 days ago"
               }
             ]
           }
@@ -1536,7 +1536,7 @@
                 "accountIds": [
                   8314321
                 ],
-                "query": "SELECT latest(`aws.cur.summary.service_cost`) AS 'Cost $' FROM Metric WHERE source = 'cur' FACET service SINCE 7 days ago LIMIT 1"
+                "query": "SELECT sum(`aws.cur.summary.service_cost`) AS 'Cost $' FROM Metric WHERE source = 'cur' AND file = 'summary' FACET service_name SINCE 2 days ago LIMIT 1"
               }
             ]
           }
@@ -1560,7 +1560,7 @@
                 "accountIds": [
                   8314321
                 ],
-                "query": "SELECT uniqueCount(service) AS 'Services' FROM Metric WHERE source = 'cur' SINCE 7 days ago"
+                "query": "SELECT uniqueCount(service_name) AS 'Services' FROM Metric WHERE source = 'cur' AND file = 'summary' SINCE 2 days ago"
               }
             ]
           }
@@ -1584,7 +1584,7 @@
                 "accountIds": [
                   8314321
                 ],
-                "query": "SELECT latest(billing_period) AS 'Period' FROM Metric WHERE source = 'cur' SINCE 7 days ago"
+                "query": "SELECT latest(billing_period) AS 'Period' FROM Metric WHERE source = 'cur' AND file = 'daily-costs' SINCE 2 days ago"
               }
             ]
           }
@@ -1603,15 +1603,12 @@
             "id": "viz.line"
           },
           "rawConfiguration": {
-            "legend": {
-              "enabled": false
-            },
             "nrqlQueries": [
               {
                 "accountIds": [
                   8314321
                 ],
-                "query": "SELECT latest(`aws.cur.daily.total_cost`) AS 'Daily Cost $' FROM Metric WHERE source = 'cur' SINCE 30 days ago TIMESERIES 1 day"
+                "query": "SELECT sum(`aws.cur.daily.total_cost`) AS 'Daily Cost $' FROM Metric WHERE source = 'cur' AND file = 'daily-costs' SINCE 30 days ago TIMESERIES 1 day"
               }
             ]
           }
@@ -1635,7 +1632,7 @@
                 "accountIds": [
                   8314321
                 ],
-                "query": "SELECT latest(`aws.cur.summary.service_cost`) FROM Metric WHERE source = 'cur' FACET service_name SINCE 7 days ago"
+                "query": "SELECT sum(`aws.cur.summary.service_cost`) AS 'Cost $' FROM Metric WHERE source = 'cur' AND file = 'summary' FACET service_name SINCE 2 days ago"
               }
             ]
           }
@@ -1654,15 +1651,12 @@
             "id": "viz.area"
           },
           "rawConfiguration": {
-            "legend": {
-              "enabled": true
-            },
             "nrqlQueries": [
               {
                 "accountIds": [
                   8314321
                 ],
-                "query": "SELECT latest(`aws.cur.daily.service_cost`) FROM Metric WHERE source = 'cur' FACET service_name SINCE 30 days ago TIMESERIES 1 day"
+                "query": "SELECT sum(`aws.cur.daily.service_cost`) AS 'Cost $' FROM Metric WHERE source = 'cur' AND file = 'daily-costs' FACET service_name SINCE 30 days ago TIMESERIES 1 day"
               }
             ]
           }
@@ -1676,7 +1670,7 @@
       "widgets": [
         {
           "id": "46687189",
-          "title": "Monthly Cost — All Services (bar)",
+          "title": "Monthly Cost \u2014 All Services",
           "layout": {
             "column": 1,
             "row": 1,
@@ -1693,14 +1687,14 @@
                 "accountIds": [
                   8314321
                 ],
-                "query": "SELECT latest(`aws.cur.summary.service_cost`) AS 'Cost $' FROM Metric WHERE source = 'cur' FACET service SINCE 7 days ago"
+                "query": "SELECT sum(`aws.cur.summary.service_cost`) AS 'Cost $' FROM Metric WHERE source = 'cur' AND file = 'summary' FACET service_name SINCE 2 days ago LIMIT 20"
               }
             ]
           }
         },
         {
           "id": "46687190",
-          "title": "Monthly Cost — Table View",
+          "title": "Monthly Cost \u2014 Table View",
           "layout": {
             "column": 7,
             "row": 1,
@@ -1717,14 +1711,14 @@
                 "accountIds": [
                   8314321
                 ],
-                "query": "SELECT latest(service_name) AS 'Service', latest(`aws.cur.summary.service_cost`) AS 'Cost (USD)' FROM Metric WHERE source = 'cur' FACET service SINCE 7 days ago LIMIT 50"
+                "query": "SELECT sum(`aws.cur.summary.service_cost`) AS 'Cost (USD)' FROM Metric WHERE source = 'cur' AND file = 'summary' FACET service_name SINCE 2 days ago LIMIT 50"
               }
             ]
           }
         },
         {
           "id": "46687191",
-          "title": "Amazon Route 53 — Daily Cost",
+          "title": "Amazon Route 53 \u2014 Daily Cost",
           "layout": {
             "column": 1,
             "row": 5,
@@ -1741,14 +1735,14 @@
                 "accountIds": [
                   8314321
                 ],
-                "query": "SELECT latest(`aws.cur.daily.service_cost`) AS 'Cost $' FROM Metric WHERE source = 'cur' AND service = 'AmazonRoute53' SINCE 30 days ago TIMESERIES 1 day"
+                "query": "SELECT sum(`aws.cur.daily.service_cost`) AS 'Cost $' FROM Metric WHERE source = 'cur' AND file = 'daily-costs' AND service = 'AmazonRoute53' SINCE 30 days ago TIMESERIES 1 day"
               }
             ]
           }
         },
         {
           "id": "46687192",
-          "title": "Amazon Bedrock — Daily Cost",
+          "title": "Amazon Bedrock \u2014 Daily Cost",
           "layout": {
             "column": 5,
             "row": 5,
@@ -1765,14 +1759,14 @@
                 "accountIds": [
                   8314321
                 ],
-                "query": "SELECT latest(`aws.cur.daily.service_cost`) AS 'Cost $' FROM Metric WHERE source = 'cur' AND service = 'AmazonBedrock' SINCE 30 days ago TIMESERIES 1 day"
+                "query": "SELECT sum(`aws.cur.daily.service_cost`) AS 'Cost $' FROM Metric WHERE source = 'cur' AND file = 'daily-costs' AND service = 'AmazonBedrock' SINCE 30 days ago TIMESERIES 1 day"
               }
             ]
           }
         },
         {
           "id": "46687193",
-          "title": "CloudWatch — Daily Cost",
+          "title": "CloudWatch \u2014 Daily Cost",
           "layout": {
             "column": 9,
             "row": 5,
@@ -1789,14 +1783,14 @@
                 "accountIds": [
                   8314321
                 ],
-                "query": "SELECT latest(`aws.cur.daily.service_cost`) AS 'Cost $' FROM Metric WHERE source = 'cur' AND service = 'AmazonCloudWatch' SINCE 30 days ago TIMESERIES 1 day"
+                "query": "SELECT sum(`aws.cur.daily.service_cost`) AS 'Cost $' FROM Metric WHERE source = 'cur' AND file = 'daily-costs' AND service = 'AmazonCloudWatch' SINCE 30 days ago TIMESERIES 1 day"
               }
             ]
           }
         },
         {
           "id": "46687194",
-          "title": "S3 — Daily Cost",
+          "title": "Amazon S3 \u2014 Daily Cost",
           "layout": {
             "column": 1,
             "row": 8,
@@ -1813,14 +1807,14 @@
                 "accountIds": [
                   8314321
                 ],
-                "query": "SELECT latest(`aws.cur.daily.service_cost`) AS 'Cost $' FROM Metric WHERE source = 'cur' AND service = 'AmazonS3' SINCE 30 days ago TIMESERIES 1 day"
+                "query": "SELECT sum(`aws.cur.daily.service_cost`) AS 'Cost $' FROM Metric WHERE source = 'cur' AND file = 'daily-costs' AND service = 'AmazonS3' SINCE 30 days ago TIMESERIES 1 day"
               }
             ]
           }
         },
         {
           "id": "46687195",
-          "title": "Secrets Manager — Daily Cost",
+          "title": "Secrets Manager \u2014 Daily Cost",
           "layout": {
             "column": 5,
             "row": 8,
@@ -1837,14 +1831,14 @@
                 "accountIds": [
                   8314321
                 ],
-                "query": "SELECT latest(`aws.cur.daily.service_cost`) AS 'Cost $' FROM Metric WHERE source = 'cur' AND service = 'AWSSecretsManager' SINCE 30 days ago TIMESERIES 1 day"
+                "query": "SELECT sum(`aws.cur.daily.service_cost`) AS 'Cost $' FROM Metric WHERE source = 'cur' AND file = 'daily-costs' AND service = 'AWSSecretsManager' SINCE 30 days ago TIMESERIES 1 day"
               }
             ]
           }
         },
         {
           "id": "46687196",
-          "title": "API Gateway — Daily Cost",
+          "title": "API Gateway \u2014 Daily Cost",
           "layout": {
             "column": 9,
             "row": 8,
@@ -1861,7 +1855,151 @@
                 "accountIds": [
                   8314321
                 ],
-                "query": "SELECT latest(`aws.cur.daily.service_cost`) AS 'Cost $' FROM Metric WHERE source = 'cur' AND service = 'AmazonApiGateway' SINCE 30 days ago TIMESERIES 1 day"
+                "query": "SELECT sum(`aws.cur.daily.service_cost`) AS 'Cost $' FROM Metric WHERE source = 'cur' AND file = 'daily-costs' AND service = 'AmazonApiGateway' SINCE 30 days ago TIMESERIES 1 day"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46687197",
+          "title": "AWS Lambda \u2014 Daily Cost",
+          "layout": {
+            "column": 1,
+            "row": 11,
+            "width": 4,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT sum(`aws.cur.daily.service_cost`) AS 'Cost $' FROM Metric WHERE source = 'cur' AND file = 'daily-costs' AND service = 'AWSLambda' SINCE 30 days ago TIMESERIES 1 day"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46687198",
+          "title": "Amazon DynamoDB \u2014 Daily Cost",
+          "layout": {
+            "column": 5,
+            "row": 11,
+            "width": 4,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT sum(`aws.cur.daily.service_cost`) AS 'Cost $' FROM Metric WHERE source = 'cur' AND file = 'daily-costs' AND service = 'AmazonDynamoDB' SINCE 30 days ago TIMESERIES 1 day"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46687199",
+          "title": "CloudFront \u2014 Daily Cost",
+          "layout": {
+            "column": 9,
+            "row": 11,
+            "width": 4,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT sum(`aws.cur.daily.service_cost`) AS 'Cost $' FROM Metric WHERE source = 'cur' AND file = 'daily-costs' AND service = 'AmazonCloudFront' SINCE 30 days ago TIMESERIES 1 day"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46687200",
+          "title": "Step Functions \u2014 Daily Cost",
+          "layout": {
+            "column": 1,
+            "row": 14,
+            "width": 4,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT sum(`aws.cur.daily.service_cost`) AS 'Cost $' FROM Metric WHERE source = 'cur' AND file = 'daily-costs' AND service = 'AmazonStates' SINCE 30 days ago TIMESERIES 1 day"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46687201",
+          "title": "AWS KMS \u2014 Daily Cost",
+          "layout": {
+            "column": 5,
+            "row": 14,
+            "width": 4,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT sum(`aws.cur.daily.service_cost`) AS 'Cost $' FROM Metric WHERE source = 'cur' AND file = 'daily-costs' AND service = 'awskms' SINCE 30 days ago TIMESERIES 1 day"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46687202",
+          "title": "AWS Glue \u2014 Daily Cost",
+          "layout": {
+            "column": 9,
+            "row": 14,
+            "width": 4,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT sum(`aws.cur.daily.service_cost`) AS 'Cost $' FROM Metric WHERE source = 'cur' AND file = 'daily-costs' AND service = 'AWSGlue' SINCE 30 days ago TIMESERIES 1 day"
               }
             ]
           }
@@ -1874,8 +2012,8 @@
       "description": "Cost breakdown by application tag and uncategorized resources",
       "widgets": [
         {
-          "id": "46687197",
-          "title": "Tagged vs Untagged Cost",
+          "id": "46687203",
+          "title": "Tagged vs Untagged Spend",
           "layout": {
             "column": 1,
             "row": 1,
@@ -1892,13 +2030,13 @@
                 "accountIds": [
                   8314321
                 ],
-                "query": "SELECT latest(`aws.cur.tag.app_total_cost`) AS 'Tagged', latest(`aws.cur.tag.uncategorized_total`) AS 'Untagged' FROM Metric WHERE source = 'cur' FACET application SINCE 7 days ago"
+                "query": "SELECT sum(`aws.cur.tag.app_total_cost`) AS 'Tagged', sum(`aws.cur.tag.uncategorized_total`) AS 'Untagged' FROM Metric WHERE source = 'cur' AND file = 'costs-by-tag' SINCE 2 days ago"
               }
             ]
           }
         },
         {
-          "id": "46687198",
+          "id": "46687204",
           "title": "Uncategorized Total Cost (USD)",
           "layout": {
             "column": 5,
@@ -1916,13 +2054,13 @@
                 "accountIds": [
                   8314321
                 ],
-                "query": "SELECT latest(`aws.cur.tag.uncategorized_total`) AS 'Untagged Cost $' FROM Metric WHERE source = 'cur' SINCE 7 days ago"
+                "query": "SELECT sum(`aws.cur.tag.uncategorized_total`) AS 'Untagged Cost $' FROM Metric WHERE source = 'cur' AND file = 'costs-by-tag' SINCE 2 days ago"
               }
             ]
           }
         },
         {
-          "id": "46687199",
+          "id": "46687205",
           "title": "Tagged Application Cost (USD)",
           "layout": {
             "column": 9,
@@ -1940,14 +2078,14 @@
                 "accountIds": [
                   8314321
                 ],
-                "query": "SELECT latest(`aws.cur.tag.app_total_cost`) AS 'Tagged Cost $' FROM Metric WHERE source = 'cur' SINCE 7 days ago"
+                "query": "SELECT sum(`aws.cur.tag.app_total_cost`) AS 'Tagged Cost $' FROM Metric WHERE source = 'cur' AND file = 'costs-by-tag' SINCE 2 days ago"
               }
             ]
           }
         },
         {
-          "id": "46687200",
-          "title": "Uncategorized Cost — by Service",
+          "id": "46687206",
+          "title": "Cost by Application Tag",
           "layout": {
             "column": 1,
             "row": 4,
@@ -1964,14 +2102,14 @@
                 "accountIds": [
                   8314321
                 ],
-                "query": "SELECT latest(`aws.cur.tag.uncategorized_service`) AS 'Cost $' FROM Metric WHERE source = 'cur' FACET service_name SINCE 7 days ago"
+                "query": "SELECT sum(`aws.cur.tag.app_total_cost`) AS 'Cost $' FROM Metric WHERE source = 'cur' AND file = 'costs-by-tag' FACET application SINCE 2 days ago LIMIT 20"
               }
             ]
           }
         },
         {
-          "id": "46687201",
-          "title": "Uncategorized Cost — Detail Table",
+          "id": "46687207",
+          "title": "Tagged Apps \u2014 Cost Table",
           "layout": {
             "column": 7,
             "row": 4,
@@ -1988,19 +2126,19 @@
                 "accountIds": [
                   8314321
                 ],
-                "query": "SELECT latest(service_name) AS 'Service', latest(`aws.cur.tag.uncategorized_service`) AS 'Cost (USD)' FROM Metric WHERE source = 'cur' FACET service SINCE 7 days ago LIMIT 50"
+                "query": "SELECT sum(`aws.cur.tag.app_total_cost`) AS 'Cost (USD)' FROM Metric WHERE source = 'cur' AND file = 'costs-by-tag' FACET application SINCE 2 days ago LIMIT 50"
               }
             ]
           }
         },
         {
-          "id": "46687202",
-          "title": "Cost by Application Tag",
+          "id": "46687208",
+          "title": "Uncategorized Cost \u2014 by Service",
           "layout": {
             "column": 1,
             "row": 8,
-            "width": 12,
-            "height": 3
+            "width": 6,
+            "height": 4
           },
           "linkedEntityGuids": null,
           "visualization": {
@@ -2012,7 +2150,55 @@
                 "accountIds": [
                   8314321
                 ],
-                "query": "SELECT latest(`aws.cur.tag.app_total_cost`) AS 'Cost $' FROM Metric WHERE source = 'cur' FACET application SINCE 7 days ago"
+                "query": "SELECT sum(`aws.cur.tag.uncategorized_service`) AS 'Cost $' FROM Metric WHERE source = 'cur' AND file = 'costs-by-tag' FACET service_name SINCE 2 days ago LIMIT 20"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46687209",
+          "title": "Uncategorized Cost \u2014 Detail Table",
+          "layout": {
+            "column": 7,
+            "row": 8,
+            "width": 6,
+            "height": 4
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.table"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT sum(`aws.cur.tag.uncategorized_service`) AS 'Cost (USD)' FROM Metric WHERE source = 'cur' AND file = 'costs-by-tag' FACET service_name SINCE 2 days ago LIMIT 50"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46687210",
+          "title": "Tagged App Cost \u2014 by Service (within app)",
+          "layout": {
+            "column": 1,
+            "row": 12,
+            "width": 12,
+            "height": 4
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.bar"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT sum(`aws.cur.tag.app_service_cost`) AS 'Cost $' FROM Metric WHERE source = 'cur' AND file = 'costs-by-tag' FACET application, service_name SINCE 2 days ago LIMIT 30"
               }
             ]
           }
@@ -2025,7 +2211,7 @@
       "description": "Per-service per-region usage quantity and blended vs unblended cost from costs.json",
       "widgets": [
         {
-          "id": "46687203",
+          "id": "46687211",
           "title": "Unblended vs Blended Cost by Service",
           "layout": {
             "column": 1,
@@ -2038,21 +2224,18 @@
             "id": "viz.line"
           },
           "rawConfiguration": {
-            "legend": {
-              "enabled": true
-            },
             "nrqlQueries": [
               {
                 "accountIds": [
                   8314321
                 ],
-                "query": "SELECT latest(`aws.cur.service.unblended_cost`) AS 'Unblended', latest(`aws.cur.service.blended_cost`) AS 'Blended' FROM Metric WHERE source = 'cur' FACET service_name SINCE 30 days ago TIMESERIES 1 day"
+                "query": "SELECT sum(`aws.cur.service.unblended_cost`) AS 'Unblended', sum(`aws.cur.service.blended_cost`) AS 'Blended' FROM Metric WHERE source = 'cur' AND file = 'costs' FACET service_name SINCE 30 days ago TIMESERIES 1 day"
               }
             ]
           }
         },
         {
-          "id": "46687204",
+          "id": "46687212",
           "title": "Usage Quantity by Service (daily)",
           "layout": {
             "column": 1,
@@ -2070,14 +2253,14 @@
                 "accountIds": [
                   8314321
                 ],
-                "query": "SELECT latest(`aws.cur.service.usage_quantity`) FROM Metric WHERE source = 'cur' FACET service_name SINCE 30 days ago TIMESERIES 1 day"
+                "query": "SELECT sum(`aws.cur.service.usage_quantity`) AS 'Usage' FROM Metric WHERE source = 'cur' AND file = 'costs' FACET service_name SINCE 30 days ago TIMESERIES 1 day"
               }
             ]
           }
         },
         {
-          "id": "46687205",
-          "title": "Record Count by Service (daily)",
+          "id": "46687213",
+          "title": "Cost by Region",
           "layout": {
             "column": 7,
             "row": 4,
@@ -2094,43 +2277,19 @@
                 "accountIds": [
                   8314321
                 ],
-                "query": "SELECT latest(`aws.cur.service.record_count`) AS 'Records' FROM Metric WHERE source = 'cur' FACET service_name SINCE 7 days ago"
+                "query": "SELECT sum(`aws.cur.service.unblended_cost`) AS 'Cost $' FROM Metric WHERE source = 'cur' AND file = 'costs' FACET region SINCE 30 days ago LIMIT 20"
               }
             ]
           }
         },
         {
-          "id": "46687206",
-          "title": "Cost by Region",
+          "id": "46687214",
+          "title": "Full Cost Detail Table",
           "layout": {
             "column": 1,
             "row": 7,
-            "width": 6,
-            "height": 3
-          },
-          "linkedEntityGuids": null,
-          "visualization": {
-            "id": "viz.bar"
-          },
-          "rawConfiguration": {
-            "nrqlQueries": [
-              {
-                "accountIds": [
-                  8314321
-                ],
-                "query": "SELECT sum(`aws.cur.service.unblended_cost`) AS 'Cost $' FROM Metric WHERE source = 'cur' FACET region SINCE 7 days ago"
-              }
-            ]
-          }
-        },
-        {
-          "id": "46687207",
-          "title": "Full Cost Detail Table",
-          "layout": {
-            "column": 7,
-            "row": 7,
-            "width": 6,
-            "height": 3
+            "width": 12,
+            "height": 4
           },
           "linkedEntityGuids": null,
           "visualization": {
@@ -2142,7 +2301,175 @@
                 "accountIds": [
                   8314321
                 ],
-                "query": "SELECT date AS 'Date', service_name AS 'Service', region AS 'Region', latest(`aws.cur.service.unblended_cost`) AS 'Cost $' FROM Metric WHERE source = 'cur' SINCE 30 days ago FACET date, service LIMIT 100"
+                "query": "SELECT sum(`aws.cur.service.unblended_cost`) AS 'Cost $' FROM Metric WHERE source = 'cur' AND file = 'costs' FACET date, service_name, region SINCE 30 days ago LIMIT 100"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46687215",
+          "title": "Cost by Usage Group \u2014 All Services (daily)",
+          "layout": {
+            "column": 1,
+            "row": 11,
+            "width": 12,
+            "height": 4
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.area"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT sum(`aws.cur.usage_group.cost`) AS 'Cost $' FROM Metric WHERE source = 'cur' AND file = 'costs-by-usage-group' FACET usage_group SINCE 30 days ago TIMESERIES 1 day"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46687216",
+          "title": "Usage Group Cost \u2014 Bar Chart",
+          "layout": {
+            "column": 1,
+            "row": 15,
+            "width": 6,
+            "height": 4
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.bar"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT sum(`aws.cur.usage_group.cost`) AS 'Cost $' FROM Metric WHERE source = 'cur' AND file = 'costs-by-usage-group' FACET usage_group SINCE 30 days ago LIMIT 30"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46687217",
+          "title": "Usage Group Cost \u2014 Table",
+          "layout": {
+            "column": 7,
+            "row": 15,
+            "width": 6,
+            "height": 4
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.table"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT sum(`aws.cur.usage_group.cost`) AS 'Cost (USD)' FROM Metric WHERE source = 'cur' AND file = 'costs-by-usage-group' FACET service_name, usage_group SINCE 30 days ago LIMIT 50"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46687218",
+          "title": "Bedrock Usage Groups \u2014 Daily Cost",
+          "layout": {
+            "column": 1,
+            "row": 19,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT sum(`aws.cur.usage_group.cost`) AS 'Cost $' FROM Metric WHERE source = 'cur' AND file = 'costs-by-usage-group' AND service = 'AmazonBedrock' FACET usage_group SINCE 30 days ago TIMESERIES 1 day"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46687219",
+          "title": "Lambda Usage Groups \u2014 Daily Cost",
+          "layout": {
+            "column": 7,
+            "row": 19,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT sum(`aws.cur.usage_group.cost`) AS 'Cost $' FROM Metric WHERE source = 'cur' AND file = 'costs-by-usage-group' AND service = 'AWSLambda' FACET usage_group SINCE 30 days ago TIMESERIES 1 day"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46687220",
+          "title": "S3 Usage Groups \u2014 Daily Cost",
+          "layout": {
+            "column": 1,
+            "row": 22,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT sum(`aws.cur.usage_group.cost`) AS 'Cost $' FROM Metric WHERE source = 'cur' AND file = 'costs-by-usage-group' AND service = 'AmazonS3' FACET usage_group SINCE 30 days ago TIMESERIES 1 day"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46687221",
+          "title": "CloudWatch Usage Groups \u2014 Daily Cost",
+          "layout": {
+            "column": 7,
+            "row": 22,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT sum(`aws.cur.usage_group.cost`) AS 'Cost $' FROM Metric WHERE source = 'cur' AND file = 'costs-by-usage-group' AND service = 'AmazonCloudWatch' FACET usage_group SINCE 30 days ago TIMESERIES 1 day"
               }
             ]
           }

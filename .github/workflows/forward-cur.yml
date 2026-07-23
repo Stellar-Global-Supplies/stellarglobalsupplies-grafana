@@ -54,10 +54,11 @@ jobs:
           CUR_DAILY_FILE: daily-costs.json
           CUR_SUMMARY_FILE: summary.json
           CUR_TAGS_FILE: costs-by-tag.json
+          CUR_USAGE_GROUP_FILE: costs-by-usage-group.json
         run: python forward_cur.py
 
       - name: Clean up generated files
         if: always()
         run: |
-          rm -f costs.json daily-costs.json summary.json costs-by-tag.json
+          rm -f costs.json daily-costs.json summary.json costs-by-tag.json costs-by-usage-group.json
           echo "Cleaned up all generated JSON files"
