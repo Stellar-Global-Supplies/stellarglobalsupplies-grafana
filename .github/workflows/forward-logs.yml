@@ -55,9 +55,11 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git checkout state || git checkout --orphan state
+          mkdir -p /tmp/state-backup
+          cp state.json /tmp/state-backup/state.json
+          git checkout state 2>/dev/null || git checkout --orphan state
           git rm -rf .github workflows forwarder.py forward-metrics.py requirements.txt Setup*.md .gitignore 2>/dev/null || true
-          cp ../state.json state.json
+          cp /tmp/state-backup/state.json state.json
           git add state.json
           if git diff --cached --quiet; then
             echo "state.json unchanged — nothing to commit"
