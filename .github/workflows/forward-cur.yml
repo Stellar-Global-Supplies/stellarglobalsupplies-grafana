@@ -54,7 +54,7 @@ jobs:
           CUR_DAILY_FILE: daily-costs.json
           CUR_SUMMARY_FILE: summary.json
           CUR_TAGS_FILE: costs-by-tag.json
-        run: python forward-cur.py
+        run: python forward_cur.py
 
       - name: Clean up generated files
         if: always()
