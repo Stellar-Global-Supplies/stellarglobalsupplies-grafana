@@ -1,1 +1,250 @@
-{}
+{
+  "/aws-glue/crawlers": {
+    "lastFetchMs": 1784779919596,
+    "updatedAt": "2026-07-23T04:11:59.976497+00:00"
+  },
+  "/aws/apigateway/stellar-global-prod": {
+    "lastFetchMs": 1784779919596,
+    "updatedAt": "2026-07-23T04:12:00.134110+00:00"
+  },
+  "/aws/apigateway/stellar-observe-prod": {
+    "lastFetchMs": 1784779919596,
+    "updatedAt": "2026-07-23T04:12:00.279749+00:00"
+  },
+  "/aws/apigateway/stellar-oms": {
+    "lastFetchMs": 1784779919596,
+    "updatedAt": "2026-07-23T04:12:00.422109+00:00"
+  },
+  "/aws/apigateway/stellar-wf-prod": {
+    "lastFetchMs": 1784779919596,
+    "updatedAt": "2026-07-23T04:12:00.669998+00:00"
+  },
+  "/aws/lambda/meta-analytics-IngestionLambda-2DYn1Tgk9nvf": {
+    "lastFetchMs": 1784779919596,
+    "updatedAt": "2026-07-23T04:12:00.822994+00:00"
+  },
+  "/aws/lambda/meta-analytics-stack-AggregationLambda-KaCou4eVdgB1": {
+    "lastFetchMs": 1784779919596,
+    "updatedAt": "2026-07-23T04:12:00.962745+00:00"
+  },
+  "/aws/lambda/meta-analytics-stack-IngestionLambda-ccXHvWA8THzt": {
+    "lastFetchMs": 1784779919596,
+    "updatedAt": "2026-07-23T04:12:01.091914+00:00"
+  },
+  "/aws/lambda/sgs-quote-app-delete-quote": {
+    "lastFetchMs": 1784779919596,
+    "updatedAt": "2026-07-23T04:12:01.238574+00:00"
+  },
+  "/aws/lambda/sgs-quote-app-get-customers": {
+    "lastFetchMs": 1784779919596,
+    "updatedAt": "2026-07-23T04:12:01.361827+00:00"
+  },
+  "/aws/lambda/sgs-quote-app-get-quotes": {
+    "lastFetchMs": 1784779919596,
+    "updatedAt": "2026-07-23T04:12:01.514135+00:00"
+  },
+  "/aws/lambda/sgs-quote-app-get-skus": {
+    "lastFetchMs": 1784779919596,
+    "updatedAt": "2026-07-23T04:12:01.649070+00:00"
+  },
+  "/aws/lambda/sgs-quote-app-save-customer": {
+    "lastFetchMs": 1784779919596,
+    "updatedAt": "2026-07-23T04:12:01.802154+00:00"
+  },
+  "/aws/lambda/sgs-quote-app-save-quote": {
+    "lastFetchMs": 1784779919596,
+    "updatedAt": "2026-07-23T04:12:01.966906+00:00"
+  },
+  "/aws/lambda/sgs-quote-app-send-email": {
+    "lastFetchMs": 1784779919596,
+    "updatedAt": "2026-07-23T04:12:02.110322+00:00"
+  },
+  "/aws/lambda/stellar-auth": {
+    "lastFetchMs": 1784779919596,
+    "updatedAt": "2026-07-23T04:12:02.263828+00:00"
+  },
+  "/aws/lambda/stellar-daily-processor": {
+    "lastFetchMs": 1784779919596,
+    "updatedAt": "2026-07-23T04:12:03.612809+00:00"
+  },
+  "/aws/lambda/stellar-global-prod-agent-router": {
+    "lastFetchMs": 1784779919596,
+    "updatedAt": "2026-07-23T04:12:03.803352+00:00"
+  },
+  "/aws/lambda/stellar-global-prod-email-sender": {
+    "lastFetchMs": 1784779919596,
+    "updatedAt": "2026-07-23T04:12:03.916768+00:00"
+  },
+  "/aws/lambda/stellar-global-prod-google-auth": {
+    "lastFetchMs": 1784779919596,
+    "updatedAt": "2026-07-23T04:12:04.334740+00:00"
+  },
+  "/aws/lambda/stellar-global-prod-ingest": {
+    "lastFetchMs": 1784779919596,
+    "updatedAt": "2026-07-23T04:12:04.505896+00:00"
+  },
+  "/aws/lambda/stellar-global-prod-meta-processor": {
+    "lastFetchMs": 1784779919596,
+    "updatedAt": "2026-07-23T04:12:04.647375+00:00"
+  },
+  "/aws/lambda/stellar-global-prod-presign": {
+    "lastFetchMs": 1784779919596,
+    "updatedAt": "2026-07-23T04:12:04.796135+00:00"
+  },
+  "/aws/lambda/stellar-global-prod-savings-calculator": {
+    "lastFetchMs": 1784779919596,
+    "updatedAt": "2026-07-23T04:12:04.920214+00:00"
+  },
+  "/aws/lambda/stellar-global-prod-social-poster": {
+    "lastFetchMs": 1784779919596,
+    "updatedAt": "2026-07-23T04:12:05.097018+00:00"
+  },
+  "/aws/lambda/stellar-observe-prod-api-metrics": {
+    "lastFetchMs": 1784779919596,
+    "updatedAt": "2026-07-23T04:12:05.300297+00:00"
+  },
+  "/aws/lambda/stellar-observe-prod-api-metrics-processor": {
+    "lastFetchMs": 1784779919596,
+    "updatedAt": "2026-07-23T04:12:05.472235+00:00"
+  },
+  "/aws/lambda/stellar-observe-prod-aws-costs": {
+    "lastFetchMs": 1784779919596,
+    "updatedAt": "2026-07-23T04:12:05.621542+00:00"
+  },
+  "/aws/lambda/stellar-observe-prod-cur-processor": {
+    "lastFetchMs": 1784779919596,
+    "updatedAt": "2026-07-23T04:12:05.784018+00:00"
+  },
+  "/aws/lambda/stellar-observe-prod-error-logs-processor": {
+    "lastFetchMs": 1784779919596,
+    "updatedAt": "2026-07-23T04:12:06.034438+00:00"
+  },
+  "/aws/lambda/stellar-observe-prod-web-traffic": {
+    "lastFetchMs": 1784779919596,
+    "updatedAt": "2026-07-23T04:12:06.226886+00:00"
+  },
+  "/aws/lambda/stellar-observe-prod-web-traffic-processor": {
+    "lastFetchMs": 1784779919596,
+    "updatedAt": "2026-07-23T04:12:06.416869+00:00"
+  },
+  "/aws/lambda/stellar-oms-create-order": {
+    "lastFetchMs": 1784779919596,
+    "updatedAt": "2026-07-23T04:12:06.596620+00:00"
+  },
+  "/aws/lambda/stellar-oms-get-order-by-token": {
+    "lastFetchMs": 1784779919596,
+    "updatedAt": "2026-07-23T04:12:06.988485+00:00"
+  },
+  "/aws/lambda/stellar-oms-send-notification": {
+    "lastFetchMs": 1784779919596,
+    "updatedAt": "2026-07-23T04:12:07.108920+00:00"
+  },
+  "/aws/lambda/stellar-oms-update-order-items": {
+    "lastFetchMs": 1784779919596,
+    "updatedAt": "2026-07-23T04:12:07.228434+00:00"
+  },
+  "/aws/lambda/stellar-oms-update-order-status": {
+    "lastFetchMs": 1784779919596,
+    "updatedAt": "2026-07-23T04:12:07.410124+00:00"
+  },
+  "/aws/lambda/stellar-report": {
+    "lastFetchMs": 1784779919596,
+    "updatedAt": "2026-07-23T04:12:07.523585+00:00"
+  },
+  "/aws/lambda/stellar-seed-user": {
+    "lastFetchMs": 1784779919596,
+    "updatedAt": "2026-07-23T04:12:07.656442+00:00"
+  },
+  "/aws/lambda/stellar-wf-prod-approval-handler": {
+    "lastFetchMs": 1784779919596,
+    "updatedAt": "2026-07-23T04:12:07.842259+00:00"
+  },
+  "/aws/lambda/stellar-wf-prod-check-duplicate": {
+    "lastFetchMs": 1784779919596,
+    "updatedAt": "2026-07-23T04:12:07.999847+00:00"
+  },
+  "/aws/lambda/stellar-wf-prod-create-approval": {
+    "lastFetchMs": 1784779919596,
+    "updatedAt": "2026-07-23T04:12:08.206933+00:00"
+  },
+  "/aws/lambda/stellar-wf-prod-create-github-pr": {
+    "lastFetchMs": 1784779919596,
+    "updatedAt": "2026-07-23T04:12:08.521864+00:00"
+  },
+  "/aws/lambda/stellar-wf-prod-create-payment-approval": {
+    "lastFetchMs": 1784779919596,
+    "updatedAt": "2026-07-23T04:12:08.661691+00:00"
+  },
+  "/aws/lambda/stellar-wf-prod-data-handler": {
+    "lastFetchMs": 1784779919596,
+    "updatedAt": "2026-07-23T04:12:08.827540+00:00"
+  },
+  "/aws/lambda/stellar-wf-prod-draft-email": {
+    "lastFetchMs": 1784779919596,
+    "updatedAt": "2026-07-23T04:12:09.181067+00:00"
+  },
+  "/aws/lambda/stellar-wf-prod-draft-payment-email": {
+    "lastFetchMs": 1784779919596,
+    "updatedAt": "2026-07-23T04:12:09.326634+00:00"
+  },
+  "/aws/lambda/stellar-wf-prod-fetch-overdue-orders": {
+    "lastFetchMs": 1784779919596,
+    "updatedAt": "2026-07-23T04:12:09.444844+00:00"
+  },
+  "/aws/lambda/stellar-wf-prod-generate-blog": {
+    "lastFetchMs": 1784779919596,
+    "updatedAt": "2026-07-23T04:12:09.564685+00:00"
+  },
+  "/aws/lambda/stellar-wf-prod-generate-leads": {
+    "lastFetchMs": 1784779919596,
+    "updatedAt": "2026-07-23T04:12:09.775862+00:00"
+  },
+  "/aws/lambda/stellar-wf-prod-generate-post": {
+    "lastFetchMs": 1784779919596,
+    "updatedAt": "2026-07-23T04:12:09.919469+00:00"
+  },
+  "/aws/lambda/stellar-wf-prod-get-orders": {
+    "lastFetchMs": 1784779919596,
+    "updatedAt": "2026-07-23T04:12:10.065012+00:00"
+  },
+  "/aws/lambda/stellar-wf-prod-load-lead-for-email": {
+    "lastFetchMs": 1784779919596,
+    "updatedAt": "2026-07-23T04:12:10.196271+00:00"
+  },
+  "/aws/lambda/stellar-wf-prod-post-to-platforms": {
+    "lastFetchMs": 1784779919596,
+    "updatedAt": "2026-07-23T04:12:10.318394+00:00"
+  },
+  "/aws/lambda/stellar-wf-prod-read-s3-context": {
+    "lastFetchMs": 1784779919596,
+    "updatedAt": "2026-07-23T04:12:10.459573+00:00"
+  },
+  "/aws/lambda/stellar-wf-prod-save-lead": {
+    "lastFetchMs": 1784779919596,
+    "updatedAt": "2026-07-23T04:12:10.579239+00:00"
+  },
+  "/aws/lambda/stellar-wf-prod-schedule-followup": {
+    "lastFetchMs": 1784779919596,
+    "updatedAt": "2026-07-23T04:12:10.723873+00:00"
+  },
+  "/aws/lambda/stellar-wf-prod-schedule-handler": {
+    "lastFetchMs": 1784779919596,
+    "updatedAt": "2026-07-23T04:12:10.843489+00:00"
+  },
+  "/aws/lambda/stellar-wf-prod-send-email": {
+    "lastFetchMs": 1784779919596,
+    "updatedAt": "2026-07-23T04:12:11.012047+00:00"
+  },
+  "/aws/lambda/stellar-wf-prod-send-payment-email": {
+    "lastFetchMs": 1784779919596,
+    "updatedAt": "2026-07-23T04:12:11.157778+00:00"
+  },
+  "/aws/lambda/stellar-wf-prod-workflow-trigger": {
+    "lastFetchMs": 1784779919596,
+    "updatedAt": "2026-07-23T04:12:11.393159+00:00"
+  },
+  "/aws/lambda/stellarglobal-ops-docs-drive": {
+    "lastFetchMs": 1784779919596,
+    "updatedAt": "2026-07-23T04:12:11.541810+00:00"
+  }
+}
