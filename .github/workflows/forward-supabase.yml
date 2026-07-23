@@ -1,0 +1,40 @@
+name: Supabase → New Relic Monitor
+
+on:
+  schedule:
+    # Runs every hour at :00  (UTC)
+    - cron: "0 * * * *"
+
+  # Allow manual trigger from the Actions tab for testing
+  workflow_dispatch:
+
+jobs:
+  collect-and-ship:
+    name: Collect Supabase metrics & push to New Relic
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      # ── Checkout ───────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── Python ─────────────────────────────────────────────────────────
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      # ── Dependencies ───────────────────────────────────────────────────
+      - name: Install dependencies
+        run: pip install -r supabase/requirements.txt
+
+      # ── Run collector ──────────────────────────────────────────────────
+      - name: Run Supabase → New Relic collector
+        working-directory: supabase
+        env:
+          SUPABASE_DB_URL:       ${{ secrets.SUPABASE_DB_URL }}
+          NEW_RELIC_LICENSE_KEY: ${{ secrets.NEW_RELIC_LICENSE_KEY }}
+          LOG_LEVEL:             INFO
+        run: python main.py
