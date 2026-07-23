@@ -1,4 +1,4 @@
-name: CloudWatch Metrics → New Relic
+name: CloudWatch Metrics → Splunk
 
 on:
   schedule:

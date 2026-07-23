@@ -1,4 +1,4 @@
-name: CloudWatch Logs → New Relic
+name: CloudWatch Logs → Splunk
 
 on:
   schedule:
