@@ -281,7 +281,20 @@ def build_metric_object(
     attributes: dict,
     interval_ms: int = 300_000,
 ) -> dict:
-    nr_type = "count" if metric_name.endswith(".Sum") else "gauge"
+    # New Relic metric types:
+    #   "count" -> cumulative delta/rate; correct only for CloudWatch .Sum metrics
+    #              (Invocations, Errors, etc. — totals measured over a period).
+    #   "gauge" -> point-in-time snapshot; correct for .Average, .Maximum, and
+    #              .Direct metrics (ListObjectsV2 size/count snapshots).
+    #
+    # Bug: sending a snapshot value (bytes, object count) typed as "count" causes
+    # New Relic to treat it as a monotonic delta and silently zero it out or
+    # discard it — which is exactly why BucketSizeBytes / NumberOfObjects showed
+    # nothing in the dashboard despite the forwarder running successfully.
+    if metric_name.endswith(".Sum"):
+        nr_type = "count"
+    else:
+        nr_type = "gauge"   # .Direct, .Average, .Maximum are all point-in-time
     return {
         "name":        metric_name,
         "type":        nr_type,
