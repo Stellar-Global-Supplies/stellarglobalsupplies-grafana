@@ -55,11 +55,13 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          mkdir -p /tmp/state-backup
-          cp metrics-state.json /tmp/state-backup/metrics-state.json
+          # Clone repo fresh into temp directory to avoid conflicts
+          rm -rf /tmp/repo-state
+          git clone https://github.com/${{ github.repository }}.git /tmp/repo-state
+          cd /tmp/repo-state
           git checkout state 2>/dev/null || git checkout --orphan state
-          git rm -rf .github workflows forwarder.py forward-metrics.py requirements.txt Setup*.md .gitignore 2>/dev/null || true
-          cp /tmp/state-backup/metrics-state.json metrics-state.json
+          # Copy only the state file from main workspace
+          cp /home/runner/work/${{ github.repository }}/${{ github.repository }}/metrics-state.json metrics-state.json
           git add metrics-state.json
           if git diff --cached --quiet; then
             echo "metrics-state.json unchanged — nothing to commit"
