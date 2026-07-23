@@ -1,4 +1,4 @@
-name: CloudWatch Logs → Splunk
+name: CloudWatch Logs → New Relic
 
 on:
   schedule:
@@ -11,10 +11,7 @@ concurrency:
 
 permissions:
   id-token: write   # needed for OIDC
-  contents: write    # needed to commit state.json
-
-env:
-  AWS_REGION: ${{ vars.AWS_REGION }}
+  contents: write   # needed to commit state.json
 
 jobs:
   forward-logs:
@@ -29,8 +26,8 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
-          role-session-name: splunk-log-forwarder
+          aws-region: us-east-1
+          role-session-name: newrelic-log-forwarder
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -46,11 +43,12 @@ jobs:
       - name: Run log forwarder (CloudWatch Logs → New Relic)
         env:
           NEW_RELIC_LICENSE_KEY: ${{ secrets.NEW_RELIC_LICENSE_KEY }}
-          NEW_RELIC_REGION: ${{ vars.NEW_RELIC_REGION }}
+          NEW_RELIC_REGION: eu
+          AWS_REGION: us-east-1
           STATE_FILE: state.json
-          LOG_GROUP_PREFIX: ${{ vars.LOG_GROUP_PREFIX }}
-          BATCH_SIZE: ${{ vars.BATCH_SIZE }}
-          LOOKBACK_HOURS: ${{ vars.LOOKBACK_HOURS }}
+          LOG_GROUP_PREFIX: ""
+          BATCH_SIZE: "500"
+          LOOKBACK_HOURS: "5"
         run: python forwarder.py
 
       - name: Commit and push state.json if changed
