@@ -200,6 +200,16 @@ def push_to_new_relic(payload: list[dict]) -> None:
     except urllib.error.HTTPError as e:
         body_text = e.read().decode("utf-8", errors="replace")
         logger.error("New Relic Logs API HTTP error %d: %s", e.code, body_text)
+        if e.code == 403:
+            logger.error("""
+HTTP 403 means the API key was rejected. Common causes:
+1. The key is a USER type key — it must be an INGEST type key
+2. The key is expired or revoked
+3. The key belongs to a different New Relic account
+
+Fix: Go to New Relic One → Settings → API Keys → Create a new key of type 'INGEST'
+Then update the NEW_RELIC_LICENSE_KEY secret in GitHub.
+""")
         raise RuntimeError(f"New Relic Logs API HTTP error {e.code}: {body_text}") from e
 
 
