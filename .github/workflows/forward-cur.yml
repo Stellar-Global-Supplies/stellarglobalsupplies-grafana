@@ -46,25 +46,68 @@ jobs:
           RAW_CUR_BUCKET: ${{ secrets.RAW_CUR_BUCKET || 'stellarglobal-costing-bucket' }}
         run: python cur_processor.py
 
-      - name: Restore log forwarder state from state branch
+      - name: Restore CUR forwarder state from state branch
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git fetch origin state 2>/dev/null || true
-          git show origin/state:cur-state.json > cur-state.json 2>/dev/null || echo "{}" > cur-state.json
-          ENTRIES=$(python3 -c "import json; d=json.load(open('cur-state.json')); print(len(d))" 2>/dev/null || echo "0")
-          echo "Restored log state: ${ENTRIES} log groups tracked"
+          git show origin/state:cur-state.json > cur-state.json 2>/dev/null || echo '{"sources":{}}' > cur-state.json
+          python3 - <<'EOF'
+          import json
+          d = json.load(open("cur-state.json"))
+          sources = d.get("sources", {})
+          total_fps = sum(len(v.get("sent_points", {})) for v in sources.values())
+          print(f"Restored CUR state: {len(sources)} sources, {total_fps} dedup fingerprints tracked")
+          for name, v in sources.items():
+              fps = len(v.get("sent_points", {}))
+              last = v.get("last_successful_push", "never")
+              print(f"  {name}: {fps} fingerprints, last push {last}")
+          EOF
 
       - name: Forward CUR metrics to New Relic
         env:
           NEW_RELIC_LICENSE_KEY: ${{ secrets.NEW_RELIC_LICENSE_KEY }}
           NEW_RELIC_REGION: eu
+          CUR_STATE_FILE: cur-state.json
           CUR_COSTS_FILE: costs.json
           CUR_DAILY_FILE: daily-costs.json
           CUR_SUMMARY_FILE: summary.json
           CUR_TAGS_FILE: costs-by-tag.json
           CUR_USAGE_GROUP_FILE: costs-by-usage-group.json
         run: python forward_cur.py
+
+      - name: Prune stale dedup fingerprints from cur-state.json
+        # Caps sent_points at 20,000 entries per source (oldest dropped first)
+        # so cur-state.json doesn't grow unbounded as months roll over.
+        run: |
+          python3 - <<'EOF'
+          import json, os
+          STATE_FILE = "cur-state.json"
+          if not os.path.exists(STATE_FILE):
+              exit(0)
+          state = json.load(open(STATE_FILE))
+          pruned_total = 0
+          MAX_FP = 20_000
+          for src_name, src_state in state.get("sources", {}).items():
+              sent = src_state.get("sent_points")
+              if not isinstance(sent, dict) or len(sent) <= MAX_FP:
+                  continue
+              keys    = list(sent.keys())
+              to_drop = keys[:len(sent) - MAX_FP]
+              for k in to_drop:
+                  del sent[k]
+              pruned_total += len(to_drop)
+              src_state["sent_points"] = sent
+          if pruned_total:
+              print(f"Pruned {pruned_total} stale fingerprints from cur-state.json")
+              tmp = STATE_FILE + ".tmp"
+              with open(tmp, "w") as f:
+                  json.dump(state, f, indent=2, sort_keys=True)
+                  f.write("\n")
+              os.replace(tmp, STATE_FILE)
+          else:
+              print("No fingerprints pruned — state within size limits")
+          EOF
 
       - name: Clean up generated files
         if: always()
@@ -77,19 +120,17 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Clone repo fresh into temp directory to avoid conflicts
           rm -rf /tmp/repo-state
           git clone https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git /tmp/repo-state
           cd /tmp/repo-state
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git checkout state 2>/dev/null || git checkout --orphan state
-          # Copy only the state file from main workspace
           cp ${{ github.workspace }}/cur-state.json cur-state.json
           git add cur-state.json
           if git diff --cached --quiet; then
             echo "cur-state.json unchanged — nothing to commit"
           else
-            git commit -m "chore: update log forwarder state [skip ci]"
+            git commit -m "chore: update CUR forwarder state [skip ci]"
             git push --force origin state
           fi

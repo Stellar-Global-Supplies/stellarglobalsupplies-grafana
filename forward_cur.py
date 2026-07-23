@@ -11,7 +11,7 @@ Reads 5 pre-transformed CUR JSON files produced by your existing automation:
                                 naming-convention / grouping panels
 
 Pushes everything as gauges to New Relic Metric API under the namespace
-  aws.cur.*
+  aws.cur.v2.*
 so they can be queried in New Relic and displayed in a Grafana-style dashboard.
 
 Note on timestamps: costs.json, daily-costs.json, and costs-by-usage-group.json
@@ -81,6 +81,17 @@ CUR_STATE_FILE = os.environ.get("CUR_STATE_FILE", "cur-state.json")
 # ─────────────────────────────────────────────────────────────────────────────
 # Persistent deduplication state
 # ─────────────────────────────────────────────────────────────────────────────
+# Strategy:
+#   For time-series files (costs, daily-costs, costs-by-usage-group) that carry
+#   a real calendar date, we track per-row fingerprints: a dict of
+#   fingerprint → cost_hash.  A row is only pushed if its fingerprint is new
+#   OR its cost hash changed (AWS retroactive revision).  This means a single
+#   revised day does NOT cause every other day to be re-pushed.
+#
+#   For snapshot files (summary, costs-by-tag) that are regenerated from
+#   month-to-date data on every run and stamped RUN_TS_MS, we keep the
+#   whole-file hash approach but strip volatile timestamp fields before hashing
+#   so that an identical-cost re-run doesn't produce a different hash.
 import hashlib
 from pathlib import Path
 
@@ -111,6 +122,63 @@ def _stable_hash(value) -> str:
         default=str
     ).encode("utf-8")
     return hashlib.sha256(payload).hexdigest()
+
+def _cost_hash(value: float) -> str:
+    """Stable 12-char hash of a rounded cost value — detects AWS revisions."""
+    return hashlib.md5(f"{round(float(value), 6):.6f}".encode()).hexdigest()[:12]
+
+def _normalise_snapshot(data) -> str:
+    """
+    Hash a snapshot file (summary / costs-by-tag) after stripping volatile
+    fields (generatedAt, updated_at) so identical costs always produce the
+    same hash regardless of when the run happened.
+    """
+    import copy
+    clean = copy.deepcopy(data)
+    if isinstance(clean, dict):
+        clean.pop("generatedAt", None)
+        clean.pop("updated_at", None)
+    if isinstance(clean, list):
+        for item in clean:
+            if isinstance(item, dict):
+                item.pop("generatedAt", None)
+    return _stable_hash(clean)
+
+def _filter_new_or_revised_metrics(
+    metrics: list[dict],
+    sent_points: dict,
+) -> tuple[list[dict], dict]:
+    """
+    Filter time-series metrics: skip any point whose identity fingerprint was
+    already sent with the same cost value.  Include points that are new or
+    whose cost changed (AWS retroactive revision — last-write-wins in NR).
+    """
+    to_push = []
+    updated = dict(sent_points)
+    for m in metrics:
+        attrs = m.get("attributes", {})
+        fp_parts = {
+            "name":         m["name"],
+            "ts":           m["timestamp"],
+            "file":         attrs.get("file", ""),
+            "service":      attrs.get("service", ""),
+            "service_name": attrs.get("service_name", ""),
+            "region":       attrs.get("region", ""),
+            "date":         attrs.get("date", ""),
+            "usage_group":  attrs.get("usage_group", ""),
+            "application":  attrs.get("application", ""),
+        }
+        fp     = _stable_hash(fp_parts)[:20]
+        cost_h = _cost_hash(m["value"])
+        if updated.get(fp) == cost_h:
+            continue
+        to_push.append(m)
+        updated[fp] = cost_h
+    skipped = len(metrics) - len(to_push)
+    if skipped:
+        logger.info("  Dedup: %d unchanged points skipped, %d new/revised to push",
+                    skipped, len(to_push))
+    return to_push, updated
 
 
 
@@ -184,10 +252,10 @@ def collect_costs(data: list) -> list[dict]:
             "region":       row.get("region", "us-east-1"),
             "date":         row["date"],
         }
-        metrics.append(make_gauge("aws.cur.service.unblended_cost",  row["totalCost"],        ts, attrs))
-        metrics.append(make_gauge("aws.cur.service.blended_cost",    row["totalBlendedCost"], ts, attrs))
-        metrics.append(make_gauge("aws.cur.service.usage_quantity",  row["totalUsage"],       ts, attrs))
-        metrics.append(make_gauge("aws.cur.service.record_count",    row["recordCount"],      ts, attrs))
+        metrics.append(make_gauge("aws.cur.v2.service.unblended_cost",  row["totalCost"],        ts, attrs))
+        metrics.append(make_gauge("aws.cur.v2.service.blended_cost",    row["totalBlendedCost"], ts, attrs))
+        metrics.append(make_gauge("aws.cur.v2.service.usage_quantity",  row["totalUsage"],       ts, attrs))
+        metrics.append(make_gauge("aws.cur.v2.service.record_count",    row["recordCount"],      ts, attrs))
     logger.info("costs.json → %d metrics from %d rows", len(metrics), len(data))
     return metrics
 
@@ -212,13 +280,13 @@ def collect_daily(data: dict) -> list[dict]:
             "date":           day["date"],
             "billing_period": billing_period,
         }
-        metrics.append(make_gauge("aws.cur.daily.total_cost", day["totalCost"], ts, day_attrs))
+        metrics.append(make_gauge("aws.cur.v2.daily.total_cost", day["totalCost"], ts, day_attrs))
 
         for svc in day.get("services", []):
             svc_attrs = {**day_attrs,
                          "service":      svc["service"],
                          "service_name": svc["serviceName"]}
-            metrics.append(make_gauge("aws.cur.daily.service_cost", svc["cost"], ts, svc_attrs))
+            metrics.append(make_gauge("aws.cur.v2.daily.service_cost", svc["cost"], ts, svc_attrs))
 
     # Monthly-to-date total as a single gauge stamped "now" (see RUN_TS_MS
     # note above) so it isn't dropped by New Relic once we're past day 2 of
@@ -226,7 +294,7 @@ def collect_daily(data: dict) -> list[dict]:
     # progresses — not a one-time end-of-month value.
     monthly_total = data.get("monthlyTotal", 0)
     if monthly_total:
-        metrics.append(make_gauge("aws.cur.monthly.total_cost", monthly_total, RUN_TS_MS, {
+        metrics.append(make_gauge("aws.cur.v2.monthly.total_cost", monthly_total, RUN_TS_MS, {
             "source":         "cur",
             "file":           "daily-costs",
             "billing_period": billing_period,
@@ -255,13 +323,13 @@ def collect_summary(data: list) -> list[dict]:
             "file":           "summary",
             "billing_period": month,
         }
-        metrics.append(make_gauge("aws.cur.summary.monthly_total", month_row["totalCost"], ts, month_attrs))
+        metrics.append(make_gauge("aws.cur.v2.summary.monthly_total", month_row["totalCost"], ts, month_attrs))
 
         for svc in month_row.get("services", []):
             svc_attrs = {**month_attrs,
                          "service":      svc["service"],
                          "service_name": svc["serviceName"]}
-            metrics.append(make_gauge("aws.cur.summary.service_cost", svc["cost"], ts, svc_attrs))
+            metrics.append(make_gauge("aws.cur.v2.summary.service_cost", svc["cost"], ts, svc_attrs))
 
     logger.info("summary.json → %d metrics from %d months", len(metrics), len(data))
     return metrics
@@ -292,19 +360,19 @@ def collect_tags(data: dict) -> list[dict]:
     for app in data.get("byApplication", []):
         app_name  = app.get("application", "unknown")
         app_attrs = {**base_attrs, "application": app_name, "tagged": "true"}
-        metrics.append(make_gauge("aws.cur.tag.app_total_cost", app.get("totalCost", 0), ts, app_attrs))
+        metrics.append(make_gauge("aws.cur.v2.tag.app_total_cost", app.get("totalCost", 0), ts, app_attrs))
         for svc in app.get("services", []):
             svc_attrs = {**app_attrs, "service": svc["service"], "service_name": svc["serviceName"]}
-            metrics.append(make_gauge("aws.cur.tag.app_service_cost", svc["cost"], ts, svc_attrs))
+            metrics.append(make_gauge("aws.cur.v2.tag.app_service_cost", svc["cost"], ts, svc_attrs))
 
     # Uncategorized
     uncat = data.get("uncategorized", {})
     if uncat:
         uncat_attrs = {**base_attrs, "application": "uncategorized", "tagged": "false"}
-        metrics.append(make_gauge("aws.cur.tag.uncategorized_total", uncat.get("totalCost", 0), ts, uncat_attrs))
+        metrics.append(make_gauge("aws.cur.v2.tag.uncategorized_total", uncat.get("totalCost", 0), ts, uncat_attrs))
         for svc in uncat.get("services", []):
             svc_attrs = {**uncat_attrs, "service": svc["service"], "service_name": svc["serviceName"]}
-            metrics.append(make_gauge("aws.cur.tag.uncategorized_service", svc["cost"], ts, svc_attrs))
+            metrics.append(make_gauge("aws.cur.v2.tag.uncategorized_service", svc["cost"], ts, svc_attrs))
 
     logger.info("costs-by-tag.json → %d metrics (%d apps + uncategorized)",
                 len(metrics), len(data.get("byApplication", [])))
@@ -336,9 +404,9 @@ def collect_usage_group(data: list) -> list[dict]:
             "region":       row.get("region", "global"),
             "date":         row["date"],
         }
-        metrics.append(make_gauge("aws.cur.usage_group.cost",           row["totalCost"],   ts, attrs))
-        metrics.append(make_gauge("aws.cur.usage_group.usage_quantity", row["usageAmount"], ts, attrs))
-        metrics.append(make_gauge("aws.cur.usage_group.record_count",   row["recordCount"], ts, attrs))
+        metrics.append(make_gauge("aws.cur.v2.usage_group.cost",           row["totalCost"],   ts, attrs))
+        metrics.append(make_gauge("aws.cur.v2.usage_group.usage_quantity", row["usageAmount"], ts, attrs))
+        metrics.append(make_gauge("aws.cur.v2.usage_group.record_count",   row["recordCount"], ts, attrs))
     logger.info("costs-by-usage-group.json → %d metrics from %d rows", len(metrics), len(data))
     return metrics
 
@@ -399,37 +467,79 @@ def push_metrics(metrics: list[dict]) -> None:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def main():
-    state = _load_state(CUR_STATE_FILE)
+    state         = _load_state(CUR_STATE_FILE)
     sources_state = state.setdefault("sources", {})
     stats = {
-        "costs_metrics": 0,
-        "daily_metrics": 0,
-        "summary_metrics": 0,
-        "tags_metrics": 0,
+        "costs_metrics":       0,
+        "daily_metrics":       0,
+        "summary_metrics":     0,
+        "tags_metrics":        0,
         "usage_group_metrics": 0,
-        "total_metrics": 0,
-        "skipped_unchanged": 0,
-        "updated_sources": 0,
+        "total_metrics":       0,
+        "skipped_unchanged":   0,
+        "updated_sources":     0,
     }
 
-    sources = [
-        ("costs", CUR_COSTS_FILE, list, collect_costs, "costs_metrics"),
-        ("daily-costs", CUR_DAILY_FILE, dict, collect_daily, "daily_metrics"),
-        ("summary", CUR_SUMMARY_FILE, list, collect_summary, "summary_metrics"),
-        ("costs-by-tag", CUR_TAGS_FILE, dict, collect_tags, "tags_metrics"),
-        ("costs-by-usage-group", CUR_USAGE_GROUP_FILE, list, collect_usage_group, "usage_group_metrics"),
+    # Per-row fingerprint dedup — safe against partial AWS cost revisions
+    timeseries_sources = [
+        ("costs",                CUR_COSTS_FILE,       list, collect_costs,       "costs_metrics"),
+        ("daily-costs",          CUR_DAILY_FILE,        dict, collect_daily,       "daily_metrics"),
+        ("costs-by-usage-group", CUR_USAGE_GROUP_FILE,  list, collect_usage_group, "usage_group_metrics"),
     ]
 
-    for source_name, path, expected_type, collector, stat_key in sources:
+    # Whole-file hash dedup (timestamp-normalised) — snapshots regenerated daily
+    snapshot_sources = [
+        ("summary",      CUR_SUMMARY_FILE, list, collect_summary, "summary_metrics"),
+        ("costs-by-tag", CUR_TAGS_FILE,    dict, collect_tags,    "tags_metrics"),
+    ]
+
+    for source_name, path, expected_type, collector, stat_key in timeseries_sources:
         data = load_json(path)
         if not isinstance(data, expected_type) or not data:
             continue
 
-        content_hash = _stable_hash(data)
-        previous_hash = sources_state.get(source_name, {}).get("sha256")
+        source_st   = sources_state.setdefault(source_name, {})
+        sent_points = source_st.get("sent_points", {})
+
+        all_metrics = collector(data)
+        if not all_metrics:
+            logger.info("%s produced no metrics", source_name)
+            continue
+
+        to_push, updated_sent_points = _filter_new_or_revised_metrics(all_metrics, sent_points)
+
+        if not to_push:
+            logger.info("%s — all %d points already sent and unchanged — skipping",
+                        source_name, len(all_metrics))
+            stats["skipped_unchanged"] += 1
+            continue
+
+        push_metrics(to_push)
+
+        now = datetime.now(timezone.utc).isoformat()
+        source_st["sent_points"]          = updated_sent_points
+        source_st["last_successful_push"] = now
+        source_st["metric_count"]         = len(to_push)
+        source_st["total_points_tracked"] = len(updated_sent_points)
+        source_st["source_file"]          = path
+        state["updated_at"] = now
+        _save_state_atomic(CUR_STATE_FILE, state)
+
+        stats[stat_key]          = len(to_push)
+        stats["total_metrics"]  += len(to_push)
+        stats["updated_sources"] += 1
+
+    for source_name, path, expected_type, collector, stat_key in snapshot_sources:
+        data = load_json(path)
+        if not isinstance(data, expected_type) or not data:
+            continue
+
+        content_hash  = _normalise_snapshot(data)
+        source_st     = sources_state.setdefault(source_name, {})
+        previous_hash = source_st.get("sha256")
 
         if content_hash == previous_hash:
-            logger.info("%s unchanged (sha256=%s) — skipping New Relic ingest",
+            logger.info("%s costs unchanged (normalised sha256=%s) — skipping",
                         source_name, content_hash[:12])
             stats["skipped_unchanged"] += 1
             continue
@@ -439,21 +549,18 @@ def main():
             logger.info("%s produced no metrics", source_name)
             continue
 
-        # IMPORTANT: state is advanced only after every batch was accepted.
         push_metrics(metrics)
 
         now = datetime.now(timezone.utc).isoformat()
-        sources_state[source_name] = {
-            "sha256": content_hash,
-            "last_successful_push": now,
-            "metric_count": len(metrics),
-            "source_file": path,
-        }
+        source_st["sha256"]               = content_hash
+        source_st["last_successful_push"] = now
+        source_st["metric_count"]         = len(metrics)
+        source_st["source_file"]          = path
         state["updated_at"] = now
         _save_state_atomic(CUR_STATE_FILE, state)
 
-        stats[stat_key] = len(metrics)
-        stats["total_metrics"] += len(metrics)
+        stats[stat_key]          = len(metrics)
+        stats["total_metrics"]  += len(metrics)
         stats["updated_sources"] += 1
 
     logger.info("CUR state file: %s", CUR_STATE_FILE)
