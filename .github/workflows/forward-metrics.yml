@@ -67,5 +67,5 @@ jobs:
             echo "metrics-state.json unchanged — nothing to commit"
           else
             git commit -m "chore: update metrics forwarder state [skip ci]"
-            git push origin state
+            git push --force origin state
           fi
