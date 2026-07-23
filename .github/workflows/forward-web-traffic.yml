@@ -2,7 +2,7 @@ name: CloudFront Web Traffic → New Relic
 
 on:
   schedule:
-    - cron: "0 */8 * * *"   # Every 8 hours
+    - cron: "0 */4 * * *"   # Every 4 hours
   workflow_dispatch:
 
 concurrency:
@@ -11,7 +11,7 @@ concurrency:
 
 permissions:
   id-token: write   # needed for OIDC
-  contents: write   # needed to commit web-traffic-report.json
+  contents: write   # needed to commit web-traffic-state.json
 
 jobs:
   forward-web-traffic:
@@ -40,6 +40,15 @@ jobs:
           python -m pip install --quiet --upgrade pip
           pip install --quiet -r requirements.txt
 
+      - name: Restore log forwarder state from state branch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git fetch origin state 2>/dev/null || true
+          git show origin/state:web-traffic-state.json > web-traffic-state.json 2>/dev/null || echo "{}" > web-traffic-state.json
+          ENTRIES=$(python3 -c "import json; d=json.load(open('web-traffic-state.json')); print(len(d))" 2>/dev/null || echo "0")
+          echo "Restored log state: ${ENTRIES} log groups tracked"
+
       - name: Process CloudFront logs and generate report
         env:
           LOGS_BUCKET: ${{ secrets.CLOUDFRONT_LOGS_BUCKET }}
@@ -54,7 +63,7 @@ jobs:
           BATCH_SIZE: "500"
         run: python forward-web-traffic.py
 
-      - name: Commit and push web-traffic-report.json to state branch
+      - name: Commit and push web-traffic-state.json to state branch
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -65,12 +74,12 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git checkout state 2>/dev/null || git checkout --orphan state
-          # Copy only the report file from main workspace
-          cp ${{ github.workspace }}/web-traffic-report.json web-traffic-report.json
-          git add web-traffic-report.json
+          # Copy only the state file from main workspace
+          cp ${{ github.workspace }}/web-traffic-state.json web-traffic-state.json
+          git add web-traffic-state.json
           if git diff --cached --quiet; then
-            echo "web-traffic-report.json unchanged — nothing to commit"
+            echo "web-traffic-state.json unchanged — nothing to commit"
           else
-            git commit -m "chore: update web traffic report [skip ci]"
+            git commit -m "chore: update web traffic state [skip ci]"
             git push --force origin state
           fi

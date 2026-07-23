@@ -1,3 +1,6 @@
 # State files — tracked in separate 'state' branch to avoid rebase conflicts
 state.json
 metrics-state.json
+cur-state.json
+web-traffic-state.json
+supabase-state.json

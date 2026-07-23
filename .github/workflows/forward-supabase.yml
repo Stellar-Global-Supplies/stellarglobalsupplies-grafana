@@ -30,6 +30,15 @@ jobs:
       - name: Install dependencies
         run: pip install -r supabase/requirements.txt
 
+      - name: Restore log forwarder state from state branch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git fetch origin state 2>/dev/null || true
+          git show origin/state:supabase-state.json > supabase-state.json 2>/dev/null || echo "{}" > supabase-state.json
+          ENTRIES=$(python3 -c "import json; d=json.load(open('supabase-state.json')); print(len(d))" 2>/dev/null || echo "0")
+          echo "Restored log state: ${ENTRIES} log groups tracked"
+
       # ── Run collector ──────────────────────────────────────────────────
       - name: Run Supabase → New Relic collector
         working-directory: supabase
@@ -38,3 +47,31 @@ jobs:
           NEW_RELIC_LICENSE_KEY: ${{ secrets.NEW_RELIC_LICENSE_KEY }}
           LOG_LEVEL:             INFO
         run: python main.py
+
+      - name: Clean up generated files
+        if: always()
+        run: |
+          rm -f costs.json daily-costs.json summary.json costs-by-tag.json costs-by-usage-group.json
+          echo "Cleaned up all generated JSON files"
+
+      - name: Commit and push supabase-state.json to state branch
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Clone repo fresh into temp directory to avoid conflicts
+          rm -rf /tmp/repo-state
+          git clone https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git /tmp/repo-state
+          cd /tmp/repo-state
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout state 2>/dev/null || git checkout --orphan state
+          # Copy only the state file from main workspace
+          cp ${{ github.workspace }}/supabase-state.json supabase-state.json
+          git add supabase-state.json
+          if git diff --cached --quiet; then
+            echo "supabase-state.json unchanged — nothing to commit"
+          else
+            git commit -m "chore: update supabase state [skip ci]"
+            git push --force origin state
+          fi
