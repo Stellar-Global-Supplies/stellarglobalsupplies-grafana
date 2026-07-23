@@ -1,10 +1,13 @@
-name: Forward CloudWatch Metrics to New Relic
+name: CloudWatch Metrics → Splunk
 
 on:
   schedule:
-    # Once a day at 7:00 AM
-    - cron: "0 7 * * *"
+    - cron: "*/5 * * * *"
   workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
 
 permissions:
   id-token: write   # needed for OIDC
@@ -14,7 +17,7 @@ env:
   AWS_REGION: ${{ vars.AWS_REGION }}
 
 jobs:
-  forward:
+  forward-metrics:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -27,7 +30,7 @@ jobs:
         with:
           role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
-          role-session-name: newrelic-metrics-forwarder
+          role-session-name: splunk-metrics-forwarder
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -40,10 +43,10 @@ jobs:
           python -m pip install --quiet --upgrade pip
           pip install --quiet -r requirements.txt
 
-      - name: Run metrics forwarder (CloudWatch Metrics → New Relic)
+      - name: Run metrics forwarder (CloudWatch Metrics → Splunk SignalFx)
         env:
-          NEW_RELIC_LICENSE_KEY: ${{ secrets.NEW_RELIC_LICENSE_KEY }}
-          NEW_RELIC_REGION: ${{ vars.NEW_RELIC_REGION }}
+          SPLUNK_INGEST_TOKEN: ${{ secrets.SPLUNK_INGEST_TOKEN }}
+          SPLUNK_REALM: ${{ secrets.SPLUNK_REALM }}
           METRICS_STATE_FILE: metrics-state.json
           METRICS_PERIOD: "300"
           BATCH_SIZE: ${{ vars.BATCH_SIZE }}

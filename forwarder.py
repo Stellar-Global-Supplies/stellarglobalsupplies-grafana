@@ -1,8 +1,8 @@
 """
-CloudWatch Logs → New Relic Logs forwarder (GitHub Actions version)
+CloudWatch Logs → Splunk HEC forwarder (GitHub Actions version)
 - Discovers all CW log groups
 - Fetches events since last run (stored in state.json)
-- Pushes to New Relic Logs API
+- Pushes to Splunk HTTP Event Collector
 - Updates last-fetch timestamps in state.json
 """
 
@@ -25,20 +25,16 @@ handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"
 logger.addHandler(handler)
 
 # ── Env vars ─────────────────────────────────────────────────────────────────
-NEW_RELIC_LICENSE_KEY = os.environ["NEW_RELIC_LICENSE_KEY"]   # New Relic ingest license key
-NEW_RELIC_REGION      = os.environ.get("NEW_RELIC_REGION", "eu")  # "us" or "eu"
-AWS_REGION            = os.environ.get("AWS_REGION", "us-east-1")
-LOG_GROUP_PREFIX      = os.environ.get("LOG_GROUP_PREFIX", "")    # optional filter prefix
-BATCH_SIZE            = int(os.environ.get("BATCH_SIZE") or "500")
-LOOKBACK_HOURS        = int(os.environ.get("LOOKBACK_HOURS") or "5")
-STATE_FILE            = os.environ.get("STATE_FILE") or "state.json"
+SPLUNK_HEC_TOKEN  = os.environ["SPLUNK_HEC_TOKEN"]   # Splunk HEC token
+SPLUNK_HEC_HOST   = os.environ["SPLUNK_HEC_HOST"]    # e.g. prd-p-xxxxxx.splunkcloud.com
+AWS_REGION        = os.environ.get("AWS_REGION", "us-east-1")
+LOG_GROUP_PREFIX  = os.environ.get("LOG_GROUP_PREFIX", "")    # optional filter prefix
+BATCH_SIZE        = int(os.environ.get("BATCH_SIZE") or "500")
+LOOKBACK_HOURS    = int(os.environ.get("LOOKBACK_HOURS") or "5")
+STATE_FILE        = os.environ.get("STATE_FILE") or "state.json"
 
-# ── New Relic endpoints ──────────────────────────────────────────────────────
-NR_LOG_API_URL = (
-    "https://log-api.eu.newrelic.com/log/v1"
-    if NEW_RELIC_REGION == "eu"
-    else "https://log-api.newrelic.com/log/v1"
-)
+# ── Splunk HEC endpoint ──────────────────────────────────────────────────────
+SPLUNK_HEC_URL = f"https://http-inputs-{SPLUNK_HEC_HOST}/services/collector/event"
 
 # ── AWS clients ──────────────────────────────────────────────────────────────
 cwlogs = boto3.client("logs", region_name=AWS_REGION)
@@ -130,94 +126,70 @@ def fetch_log_events(log_group: str, start_ms: int, end_ms: int) -> list[dict]:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# New Relic Logs push
+# Splunk HEC push
 # ─────────────────────────────────────────────────────────────────────────────
 
-def build_nr_log_payload(log_group: str, events: list[dict]) -> list[dict]:
+def build_splunk_log_payload(log_group: str, events: list[dict]) -> list[dict]:
     """
-    New Relic Logs API payload format (with common block for shared attributes):
-    [
-      {
-        "common": {
-          "attributes": {
-            "log_group": "...",
-            "region": "...",
-            "job": "cloudwatch-forwarder"
-          }
-        },
-        "logs": [
-          { "timestamp": <epoch_ms>, "message": "<log line>" },
-          ...
-        ]
-      }
-    ]
+    Splunk HEC payload format (JSON per event, newline-delimited):
+    {
+      "time": <epoch_seconds>,
+      "event": "<log line>",
+      "sourcetype": "aws:cloudwatch",
+      "source": "<log_group>",
+      "fields": { "log_group": "...", "region": "...", "forwarder": "github-actions" }
+    }
     """
-    log_entries = []
+    records = []
     for ev in events:
-        ts_ms = ev["timestamp"]  # already in milliseconds
-        message = ev.get("message", "").rstrip("\n")
-        log_entries.append({
-            "timestamp": ts_ms,
-            "message": message,
-        })
-
-    return [
-        {
-            "common": {
-                "attributes": {
-                    "log_group": log_group,
-                    "region": AWS_REGION,
-                    "job": "cloudwatch-forwarder",
-                }
+        records.append({
+            "time": ev["timestamp"] / 1000.0,  # HEC expects epoch seconds (float)
+            "event": ev.get("message", "").rstrip("\n"),
+            "sourcetype": "aws:cloudwatch",
+            "source": log_group,
+            "fields": {
+                "log_group": log_group,
+                "log_stream": ev.get("logStreamName", ""),
+                "region": AWS_REGION,
+                "forwarder": "github-actions",
             },
-            "logs": log_entries,
-        }
-    ]
+        })
+    return records
 
 
-def push_to_new_relic(payload: list[dict]) -> None:
-    """Push log entries to New Relic Logs API."""
+def push_to_splunk_hec(payload: list[dict]) -> None:
+    """Push log entries to Splunk HEC. Each event is a JSON line."""
     if not payload:
         return
 
-    body = json.dumps(payload).encode("utf-8")
+    # HEC accepts newline-delimited JSON for multiple events
+    body = "\n".join(json.dumps(r) for r in payload).encode("utf-8")
 
     req = urllib.request.Request(
-        NR_LOG_API_URL,
+        SPLUNK_HEC_URL,
         data=body,
         headers={
             "Content-Type": "application/json",
-            "Api-Key": NEW_RELIC_LICENSE_KEY,
+            "Authorization": f"Splunk {SPLUNK_HEC_TOKEN}",
         },
         method="POST",
     )
     try:
         with urllib.request.urlopen(req, timeout=30) as resp:
             body_text = resp.read().decode("utf-8", errors="replace")
-            logger.info("New Relic Logs API response HTTP %d: %s", resp.status, body_text)
-            if resp.status not in (200, 202):
-                raise RuntimeError(f"New Relic Logs API returned HTTP {resp.status}: {body_text}")
+            logger.info("Splunk HEC response HTTP %d: %s", resp.status, body_text)
+            if resp.status not in (200, 201):
+                raise RuntimeError(f"Splunk HEC returned HTTP {resp.status}: {body_text}")
     except urllib.error.HTTPError as e:
         body_text = e.read().decode("utf-8", errors="replace")
-        logger.error("New Relic Logs API HTTP error %d: %s", e.code, body_text)
-        if e.code == 403:
-            logger.error("""
-HTTP 403 means the API key was rejected. Common causes:
-1. The key is a USER type key — it must be an INGEST type key
-2. The key is expired or revoked
-3. The key belongs to a different New Relic account
-
-Fix: Go to New Relic One → Settings → API Keys → Create a new key of type 'INGEST'
-Then update the NEW_RELIC_LICENSE_KEY secret in GitHub.
-""")
-        raise RuntimeError(f"New Relic Logs API HTTP error {e.code}: {body_text}") from e
+        raise RuntimeError(f"Splunk HEC error {e.code}: {body_text}") from e
 
 
 def push_in_batches(log_group: str, events: list[dict]) -> None:
     for i in range(0, len(events), BATCH_SIZE):
         batch = events[i : i + BATCH_SIZE]
-        payload = build_nr_log_payload(log_group, batch)
-        push_to_new_relic(payload)
+        payload = build_splunk_log_payload(log_group, batch)
+        push_to_splunk_hec(payload)
         logger.debug("%s: pushed batch %d-%d", log_group, i, i + len(batch))
 
 

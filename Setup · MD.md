@@ -1,77 +1,95 @@
-# CloudWatch Logs & Metrics → New Relic — Setup Guide
+# CloudWatch Logs & Metrics → Splunk Observability Cloud — Setup Guide
 
-End-to-end guide for shipping every CloudWatch log group and key CloudWatch metrics (S3, DynamoDB) to **New Relic** via GitHub Actions workflows, with state stored in `state.json` / `metrics-state.json` in the repo.
+End-to-end guide for shipping CloudWatch logs and metrics to **Splunk Observability Cloud** via GitHub Actions workflows, with state stored in `state.json` / `metrics-state.json` in the repo.
+
+**No CloudFormation. No AWS integration. Pure push from GitHub Actions only.**
 
 ---
 
 ## Architecture Overview
 
 ```
-GitHub Actions (cron-based)
+GitHub Actions (cron-based, OIDC auth)
         │
         ├── OIDC → Assume IAM Role
-        ├── Read NEW_RELIC_LICENSE_KEY from GitHub secrets
         ├── Run forwarder.py
         │       ├── Discover all CloudWatch log groups
         │       ├── Fetch events since last run (from state.json)
-        │       ├── Push to New Relic Logs API
+        │       ├── Push to Splunk HEC (HTTP Event Collector)
         │       └── Update state.json with new timestamps
         ├── Run forward-metrics.py
-        │       ├── Discover S3 buckets & DynamoDB tables
+        │       ├── Discover S3, DynamoDB, Lambda, API Gateway resources
         │       ├── Fetch CloudWatch metrics
-        │       ├── Push to New Relic Metrics API
+        │       ├── Push to Splunk SignalFx ingest API
         │       └── Update metrics-state.json
         └── Commit updated state files back to repo
 ```
 
-**Key design decisions**
+**Cost: $0 forever.** Splunk Observability Cloud Free Edition, no credit card, no expiry.
 
-| Concern | Decision |
-|---|---|
-| State | `state.json` / `metrics-state.json` committed to repo after each run |
-| Scheduling | GitHub Actions cron (logs: hourly, metrics: daily) |
-| Auth | New Relic Ingest License Key stored in GitHub secret; never in code |
-| Retries | Failed log groups keep old timestamp in state → retried next run |
-| Idempotency | New Relic deduplicates by `timestamp + message` |
+---
+
+## Endpoint Reference
+
+| Signal | URL | Auth |
+|--------|-----|------|
+| Logs | `https://http-inputs-<SPLUNK_HOST>/services/collector/event` | `Authorization: Splunk <HEC_TOKEN>` |
+| Metrics | `https://ingest.<REALM>.signalfx.com/v2/datapoint` | `X-SF-Token: <INGEST_TOKEN>` |
+
+Your `<REALM>` is shown in Settings → your username → Organizations (e.g. `us0`, `us1`, `eu0`).
 
 ---
 
 ## Prerequisites
 
 | Tool | Min version |
-|---|---|
+|------|-------------|
 | AWS CLI | 2.x |
 | Python | 3.12 |
 | GitHub Actions runner | ubuntu-latest |
 
 ---
 
-## Step 1 — New Relic Setup
+## Step 1 — Sign up for Splunk Observability Cloud
 
-### 1.1 Create a New Relic account
-
-1. Sign up at <https://newrelic.com/signup>
-2. Free tier includes **100 GB/month** of data ingestion — sufficient for moderate CloudWatch volume
-
-### 1.2 Find your Ingest License Key
-
-1. Log in to [New Relic One](https://one.newrelic.com)
-2. Go to **Settings** (gear icon) → **API Keys**
-3. Click **Create a key**
-   - Key type: **INGEST** (not USER)
-   - Name: `cloudwatch-forwarder`
-4. Copy the key value (shown only once)
-5. **Important:** Note your New Relic **region**:
-   - **US** region: `log-api.newrelic.com` / `metric-api.newrelic.com`
-   - **EU** region: `log-api.eu.newrelic.com` / `metric-api.eu.newrelic.com`
+1. Go to https://www.splunk.com/en_us/products/observability-cloud.html
+2. Click **Get started free** → **Free Edition**
+3. No credit card required
+4. After login, note your **realm**: Settings → your username → Organizations section (e.g. `us0`, `eu0`)
 
 ---
 
-## Step 2 — AWS Preparation
+## Step 2 — Create Ingest Token (Metrics)
 
-### 2.1 Create OIDC trust for GitHub Actions
+1. In Splunk Observability Cloud, go to **Settings** → **Access Tokens**
+2. Click **Create Token**
+   - Name: `github-actions-ingest`
+   - Scope: **Ingest**
+3. Copy the token value
+4. Save as GitHub secret: `SPLUNK_INGEST_TOKEN`
 
-This lets GHA assume an IAM role without long-lived keys.
+---
+
+## Step 3 — Set up Splunk Cloud for Logs (HEC)
+
+Splunk Observability Cloud free edition bundles a Splunk Cloud instance for log ingestion.
+
+1. In Splunk Observability Cloud, go to **Settings** → **Log Observer** → **Connect to Splunk Cloud**
+2. Follow the wizard — it provisions your Splunk Cloud instance
+3. Once provisioned, open the Splunk Cloud UI:
+   - Go to **Settings** → **Data Inputs** → **HTTP Event Collector** → **New Token**
+   - Name: `cloudwatch-logs`
+   - Source type: `aws:cloudwatch`
+   - Index: `main`
+   - **Disable** indexer acknowledgement (required for this integration)
+4. Copy the token value → save as GitHub secret: `SPLUNK_HEC_TOKEN`
+5. Note your Splunk Cloud hostname (format: `prd-p-xxxxxx.splunkcloud.com`) → save as GitHub secret: `SPLUNK_HEC_HOST`
+
+---
+
+## Step 4 — AWS Preparation (OIDC)
+
+This lets GitHub Actions assume an IAM role without long-lived keys.
 
 ```bash
 # 1. Create OIDC provider (one-time per account)
@@ -80,7 +98,7 @@ aws iam create-open-id-connect-provider \
   --client-id-list sts.amazonaws.com \
   --thumbprint-list 6938fd4d98bab03faadb97b34396831e3780aea1
 
-# 2. Create the deploy role (update placeholders)
+# 2. Create the deploy role
 cat > /tmp/trust.json <<'EOF'
 {
   "Version": "2012-10-17",
@@ -103,55 +121,24 @@ cat > /tmp/trust.json <<'EOF'
 EOF
 
 aws iam create-role \
-  --role-name gha-cwlogs-newrelic-deploy \
+  --role-name gha-cwlogs-splunk-deploy \
   --assume-role-policy-document file:///tmp/trust.json
 
-# 3. Attach necessary permissions (minimal set)
+# 3. Attach permissions
 aws iam attach-role-policy \
-  --role-name gha-cwlogs-newrelic-deploy \
-  --policy-arn arn:aws:iam::aws:policy/PowerUserAccess   # tighten as needed
+  --role-name gha-cwlogs-splunk-deploy \
+  --policy-arn arn:aws:iam::aws:policy/PowerUserAccess
 
-# Note the role ARN — you'll need it for GitHub secrets
-aws iam get-role --role-name gha-cwlogs-newrelic-deploy \
+# Note the role ARN
+aws iam get-role --role-name gha-cwlogs-splunk-deploy \
   --query Role.Arn --output text
 ```
 
 ---
 
-## Step 3 — Repository Setup
+## Step 5 — IAM Permissions
 
-### 3.1 Repository secrets (Settings → Secrets and variables → Actions)
-
-| Secret | Value |
-|---|---|
-| `AWS_DEPLOY_ROLE_ARN` | ARN from Step 2.1 |
-| `NEW_RELIC_LICENSE_KEY` | New Relic Ingest License Key from Step 1.2 |
-
-### 3.2 Repository variables (Settings → Variables)
-
-| Variable | Value |
-|---|---|
-| `AWS_REGION` | `us-east-1` (or your AWS region) |
-| `NEW_RELIC_REGION` | `eu` (or `us` if using US region) |
-
-### 3.3 Push to main
-
-```bash
-git add .
-git commit -m "Initial setup: forwarder and workflows"
-git push origin main
-```
-
-Once pushed, the workflows will:
-- `forward-logs.yml` — Run automatically every hour via cron
-- `forward-metrics.yml` — Run automatically once a day at 7:00 AM
-- Both are manually triggerable from the Actions tab
-
----
-
-## Step 4 — IAM Permissions (for metrics)
-
-The OIDC deploy role needs these additional permissions to fetch S3 and DynamoDB metrics:
+Attach additional permissions for Lambda and API Gateway:
 
 ```json
 {
@@ -160,23 +147,13 @@ The OIDC deploy role needs these additional permissions to fetch S3 and DynamoDB
     {
       "Effect": "Allow",
       "Action": [
-        "cloudwatch:ListMetrics",
-        "cloudwatch:GetMetricData",
-        "cloudwatch:GetMetricStatistics"
-      ],
-      "Resource": "*"
-    },
-    {
-      "Effect": "Allow",
-      "Action": [
-        "s3:ListAllMyBuckets"
-      ],
-      "Resource": "*"
-    },
-    {
-      "Effect": "Allow",
-      "Action": [
-        "dynamodb:ListTables"
+        "cloudwatch:GetMetricStatistics",
+        "logs:DescribeLogGroups",
+        "logs:FilterLogEvents",
+        "s3:ListAllMyBuckets",
+        "dynamodb:ListTables",
+        "lambda:ListFunctions",
+        "apigateway:GET"
       ],
       "Resource": "*"
     }
@@ -184,245 +161,101 @@ The OIDC deploy role needs these additional permissions to fetch S3 and DynamoDB
 }
 ```
 
-Attach them via the AWS CLI:
+```bash
+aws iam create-policy \
+  --policy-name gha-cwlogs-splunk-policy \
+  --policy-document file:///tmp/splunk-policy.json
+
+aws iam attach-role-policy \
+  --role-name gha-cwlogs-splunk-deploy \
+  --policy-arn arn:aws:iam::YOUR_ACCOUNT_ID:policy/gha-cwlogs-splunk-policy
+```
+
+---
+
+## Step 6 — Repository Setup
+
+### 6.1 GitHub Secrets (Settings → Secrets and variables → Actions)
+
+| Secret | Value |
+|--------|-------|
+| `AWS_DEPLOY_ROLE_ARN` | ARN from Step 4 |
+| `SPLUNK_HEC_TOKEN` | HEC token from Step 3 |
+| `SPLUNK_HEC_HOST` | Splunk Cloud hostname from Step 3 |
+| `SPLUNK_INGEST_TOKEN` | Ingest token from Step 2 |
+| `SPLUNK_REALM` | Your realm (e.g. `us0`, `eu0`) |
+
+### 6.2 GitHub Variables (Settings → Variables)
+
+| Variable | Value |
+|----------|-------|
+| `AWS_REGION` | `us-east-1` (or your AWS region) |
+| `LOG_GROUP_PREFIX` | (optional) Filter prefix for log groups |
+| `BATCH_SIZE` | `500` |
+| `LOOKBACK_HOURS` | `5` |
+
+### 6.3 Push to main
 
 ```bash
-# Create a policy from the JSON above
-aws iam create-policy \
-  --policy-name gha-cwlogs-metrics-policy \
-  --policy-document file:///tmp/metrics-policy.json
-
-# Attach to the existing role
-aws iam attach-role-policy \
-  --role-name gha-cwlogs-newrelic-deploy \
-  --policy-arn arn:aws:iam::YOUR_ACCOUNT_ID:policy/gha-cwlogs-metrics-policy
+git add .
+git commit -m "Initial setup: CloudWatch → Splunk forwarder"
+git push origin main
 ```
+
+Once pushed:
+- `forward-logs.yml` — Runs every 5 minutes via cron
+- `forward-metrics.yml` — Runs every 5 minutes via cron
+- Both are manually triggerable from the Actions tab
 
 ---
 
-## Step 5 — Verify in New Relic
+## Step 7 — Verify Data in Splunk
 
-### CloudWatch Logs
+### Check Logs
 
-1. Open [New Relic One](https://one.newrelic.com)
-2. Go to **Logs** → **Logs Management**
-3. Run a NRQL query:
-```sql
-SELECT * FROM Log WHERE job = 'cloudwatch-forwarder' SINCE 1 hour ago
-```
-4. Filter by log group:
-```sql
-SELECT * FROM Log WHERE log_group = '/aws/lambda/my-function' SINCE 1 hour ago
-```
+1. Open **Splunk Cloud** → **Search**
+2. Run: `index=main sourcetype="aws:cloudwatch"`
+3. Should show events within 10 minutes of first workflow run
+4. In **Splunk Observability Cloud** → **Log Observer** → same logs via Log Observer Connect
 
-### CloudWatch Metrics (S3 & DynamoDB)
+### Check Metrics
 
-1. Go to **Metrics** → **Metrics Explorer**
-2. Query by metric name:
-```sql
-SELECT average(custom.cloudwatch.s3.BucketSizeBytes) FROM Metric SINCE 1 day ago TIMESERIES
-```
-3. Filter by source:
-```sql
-SELECT average(custom.cloudwatch.s3.BucketSizeBytes) FROM Metric WHERE source = 's3' SINCE 1 day ago TIMESERIES
-```
-4. DynamoDB example:
-```sql
-SELECT sum(custom.cloudwatch.dynamodb.ConsumedReadCapacityUnits) FROM Metric WHERE source = 'dynamodb' SINCE 1 day ago TIMESERIES
-```
-
-### View all forwarded metrics
-
-```sql
-SELECT uniques(metricName) FROM Metric WHERE metricName LIKE 'custom.cloudwatch.%' SINCE 1 day ago
-```
-
----
-
-## Step 6 — Create Dashboards in New Relic
-
-### 6.1 CloudWatch Logs Dashboard
-
-1. In [New Relic One](https://one.newrelic.com), go to **Dashboards** → **Create a dashboard**
-2. Name: `CloudWatch Logs Overview`
-3. Add widgets using NRQL queries:
-
-**Widget 1 — Log Volume by Log Group (bar chart)**
-```sql
-SELECT count(*) FROM Log WHERE job = 'cloudwatch-forwarder' FACET log_group SINCE 1 day ago TIMESERIES
-```
-- Visualization: **Stacked bar**
-
-**Widget 2 — Logs by Region (pie chart)**
-```sql
-SELECT count(*) FROM Log WHERE job = 'cloudwatch-forwarder' FACET region SINCE 1 day ago
-```
-- Visualization: **Pie**
-
-**Widget 3 — Recent Errors (table)**
-```sql
-SELECT timestamp, message, log_group FROM Log WHERE job = 'cloudwatch-forwarder' AND message LIKE '%error%' OR message LIKE '%ERROR%' OR message LIKE '%Exception%' SINCE 1 hour ago
-```
-- Visualization: **Table**
-
-**Widget 4 — Log Ingestion Rate (line chart)**
-```sql
-SELECT rate(count(*), 1 minute) FROM Log WHERE job = 'cloudwatch-forwarder' SINCE 1 day ago TIMESERIES
-```
-- Visualization: **Line**
-
-### 6.2 S3 Metrics Dashboard
-
-1. **Dashboards** → **Create a dashboard**
-2. Name: `S3 CloudWatch Metrics`
-
-**Widget 1 — Bucket Storage Size (line chart)**
-```sql
-SELECT average(custom.cloudwatch.s3.BucketSizeBytes) FROM Metric FACET bucket SINCE 7 days ago TIMESERIES
-```
-- Visualization: **Line**
-
-**Widget 2 — Object Count (line chart)**
-```sql
-SELECT average(custom.cloudwatch.s3.NumberOfObjects) FROM Metric FACET bucket SINCE 7 days ago TIMESERIES
-```
-- Visualization: **Line**
-
-**Widget 3 — Request Volume (line chart)**
-```sql
-SELECT sum(custom.cloudwatch.s3.GetObject) + sum(custom.cloudwatch.s3.PutObject) + sum(custom.cloudwatch.s3.ListBucket) FROM Metric FACET bucket SINCE 7 days ago TIMESERIES
-```
-- Visualization: **Line**
-
-**Widget 4 — Error Rate (billboard)**
-```sql
-SELECT sum(custom.cloudwatch.s3.4xxErrors) + sum(custom.cloudwatch.s3.5xxErrors) FROM Metric SINCE 7 days ago
-```
-- Visualization: **Billboard**
-
-### 6.3 DynamoDB Metrics Dashboard
-
-1. **Dashboards** → **Create a dashboard**
-2. Name: `DynamoDB CloudWatch Metrics`
-
-**Widget 1 — Read/Write Capacity (line chart)**
-```sql
-SELECT average(custom.cloudwatch.dynamodb.ConsumedReadCapacityUnits) AS 'Read (CU)', average(custom.cloudwatch.dynamodb.ConsumedWriteCapacityUnits) AS 'Write (CU)' FROM Metric FACET table SINCE 7 days ago TIMESERIES
-```
-- Visualization: **Line**
-
-**Widget 2 — Throttled Requests (line chart)**
-```sql
-SELECT sum(custom.cloudwatch.dynamodb.ThrottledRequests) FROM Metric FACET table SINCE 7 days ago TIMESERIES
-```
-- Visualization: **Line**
-
-**Widget 3 — System & User Errors (line chart)**
-```sql
-SELECT sum(custom.cloudwatch.dynamodb.SystemErrors) AS 'System Errors', sum(custom.cloudwatch.dynamodb.UserErrors) AS 'User Errors' FROM Metric SINCE 7 days ago TIMESERIES
-```
-- Visualization: **Line**
-
-**Widget 4 — Request Latency (line chart)**
-```sql
-SELECT average(custom.cloudwatch.dynamodb.SuccessfulRequestLatency) FROM Metric FACET table SINCE 7 days ago TIMESERIES
-```
-- Visualization: **Line**
-
-### 6.4 Combined CloudWatch Overview Dashboard
-
-Create a single dashboard with all the key widgets:
-
-1. **Dashboards** → **Create a dashboard**
-2. Name: `CloudWatch Overview`
-
-**Widget 1 — Log Ingestion Rate**
-```sql
-SELECT rate(count(*), 1 minute) FROM Log WHERE job = 'cloudwatch-forwarder' SINCE 1 day ago TIMESERIES
-```
-
-**Widget 2 — Top 10 Log Groups by Volume**
-```sql
-SELECT count(*) FROM Log WHERE job = 'cloudwatch-forwarder' FACET log_group LIMIT 10 SINCE 1 day ago
-```
-
-**Widget 3 — S3 Bucket Sizes**
-```sql
-SELECT latest(custom.cloudwatch.s3.BucketSizeBytes) FROM Metric FACET bucket SINCE 1 day ago
-```
-
-**Widget 4 — DynamoDB Throttling Alerts**
-```sql
-SELECT sum(custom.cloudwatch.dynamodb.ThrottledRequests) FROM Metric WHERE throttledRequests > 0 FACET table SINCE 1 day ago
-```
-
-### 6.5 Set up Alerts (optional)
-
-1. Go to **Alerts & AI** → **Alert conditions (NRQL)**
-2. Create a condition:
-   - Name: `High DynamoDB Throttling`
-   - NRQL: `SELECT sum(custom.cloudwatch.dynamodb.ThrottledRequests) FROM Metric SINCE 5 minutes ago`
-   - Threshold: `> 10` for `5 minutes`
-   - Policy: Create new or add to existing
-
-3. Create another:
-   - Name: `S3 High Error Rate`
-   - NRQL: `SELECT sum(custom.cloudwatch.s3.4xxErrors) + sum(custom.cloudwatch.s3.5xxErrors) FROM Metric SINCE 5 minutes ago`
-   - Threshold: `> 50` for `5 minutes`
+1. In **Splunk Observability Cloud**, go to **Metrics Finder**
+2. Search: `aws.s3.BucketSizeBytes` or `aws.lambda.Invocations`
+3. Should appear within 10 minutes of first workflow run
 
 ---
 
 ## Operational Reference
 
-### Check last-fetch timestamps in state files
+### Check last-fetch timestamps
 
 ```bash
 cat state.json | jq .
 cat metrics-state.json | jq .
 ```
 
-Example output:
-```json
-{
-  "/aws/lambda/my-function": {
-    "lastFetchMs": 1721678400000,
-    "updatedAt": "2026-07-22T23:00:00+00:00"
-  }
-}
-```
-
 ### Manually trigger a run
 
-From GitHub → **Actions** → **Forward CloudWatch Logs to New Relic** → **Run workflow**
+From GitHub → **Actions** → **CloudWatch Logs → Splunk** or **CloudWatch Metrics → Splunk** → **Run workflow**
 
-### Reset a log group's last-fetch time (force re-send)
+### Reset state (force re-send)
 
-Delete the entry from `state.json` locally, commit, and push:
 ```bash
-# Remove a specific log group entry
-jq 'del(.["/aws/lambda/my-function"])' state.json > state.json.tmp && mv state.json.tmp state.json
-
-# Or reset entire state to re-send everything on next run
 echo '{}' > state.json
-
-git commit -am "chore: reset forwarder state [skip ci]"
+echo '{}' > metrics-state.json
+git commit -am "chore: reset state [skip ci]"
 git push
 ```
 
-On the next run, it will look back `LOOKBACK_HOURS` (default 5) and re-send.
-
-### View workflow logs
-
-From GitHub → **Actions** → click the latest run → expand steps to see output.
-
 ### Change schedule frequency
 
-Edit `.github/workflows/forward-logs.yml` → change the cron expression:
+Edit `.github/workflows/forward-logs.yml` or `forward-metrics.yml`:
 
 ```yaml
 schedule:
-  - cron: "*/30 * * * *"   # every 30 minutes
-  - cron: "0 */2 * * *"   # every 2 hours
+  - cron: "*/5 * * * *"   # every 5 minutes
+  - cron: "0 * * * *"     # every hour
 ```
 
 ---
@@ -430,31 +263,19 @@ schedule:
 ## Troubleshooting
 
 | Symptom | Likely cause | Fix |
-|---|---|---|
-| Workflow fails at OIDC step | Trust policy org/repo mismatch | Verify `YOUR_ORG/YOUR_REPO` in trust policy |
-| `HTTP 401` in workflow logs | Invalid or missing license key | Update `NEW_RELIC_LICENSE_KEY` secret in GitHub → re-run |
-| `HTTP 403` in workflow logs | License key doesn't have INGEST type | Create a new key with type **INGEST** in New Relic |
-| `HTTP 429` in workflow logs | Rate-limited by New Relic | Reduce `BATCH_SIZE` via `BATCH_SIZE` variable |
-| State not updating | Workflow error mid-run | Check workflow logs; failed groups keep old timestamp |
-| No data in New Relic | Wrong region endpoint | Set `NEW_RELIC_REGION` to `eu` or `us` correctly |
-| No data in New Relic | License key is USER type instead of INGEST | Create a new INGEST key in New Relic API Keys |
-| `AccessDenied` on `logs:FilterLogEvents` | IAM role missing permissions | Attach `CloudWatchLogsReadOnlyAccess` to the role |
-
----
-
-## Cost Estimate (rough)
-
-| Service | Estimate |
-|---|---|
-| GitHub Actions | ~$0 (public repo: 2000 min/month free; private: also free tier) |
-| CloudWatch API calls | ~$0.01–$0.10 depending on log volume |
-| **New Relic** | Free tier: 100 GB/month logs + metrics ingested |
+|---------|--------------|-----|
+| HEC returns 403 | Token disabled | Re-enable in Splunk Cloud → Settings → HEC |
+| HEC returns 400 | Indexer acknowledgement is ON | Disable it in HEC token settings |
+| Metrics not in Finder | Wrong `SPLUNK_REALM` | Check realm matches your org exactly |
+| `X-SF-Token` rejected (401) | Token scope is `API` not `Ingest` | Create new token with scope **Ingest** |
+| `lambda:ListFunctions` denied | Missing IAM permission | Add policy from Step 5 |
+| No logs in Splunk Search | Wrong `SPLUNK_HEC_HOST` | Verify hostname matches Splunk Cloud instance |
+| Duplicate events | Workflow running concurrently | `concurrency` block is already in workflow — ensure it's present |
 
 ---
 
 ## Security Notes
 
-- The New Relic Ingest License Key lives **only** in GitHub secrets — never in code or repo files.
+- Splunk tokens live **only** in GitHub secrets — never in code or repo files.
 - The GHA deploy role uses **OIDC** — no long-lived AWS credentials stored in GitHub.
-- The IAM role should be **least-privilege**: read-only on CloudWatch Logs, plus the metrics permissions listed above.
-- `state.json` and `metrics-state.json` contain only log group names, table/bucket names, and timestamps — no sensitive data.
+- `state.json` and `metrics-state.json` contain only resource names and timestamps — no sensitive data.
