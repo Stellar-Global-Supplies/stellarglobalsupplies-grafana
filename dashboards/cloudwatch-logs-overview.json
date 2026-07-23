@@ -1,0 +1,113 @@
+{
+  "name": "CloudWatch Logs Overview",
+  "description": "CloudWatch log groups forwarded to New Relic via GitHub Actions",
+  "permissions": "PUBLIC_READ_ONLY",
+  "pages": [
+    {
+      "name": "CloudWatch Logs Overview",
+      "description": "Overview of all CloudWatch log groups forwarded to New Relic",
+      "widgets": [
+        {
+          "title": "Log Volume by Log Group",
+          "layout": {
+            "column": 1,
+            "row": 1,
+            "width": 6,
+            "height": 4
+          },
+          "visualization": {
+            "id": "viz.bar"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountId": 0,
+                "query": "SELECT count(*) FROM Log WHERE job = 'cloudwatch-forwarder' FACET log_group SINCE 1 day ago TIMESERIES"
+              }
+            ]
+          }
+        },
+        {
+          "title": "Logs by Region",
+          "layout": {
+            "column": 7,
+            "row": 1,
+            "width": 4,
+            "height": 4
+          },
+          "visualization": {
+            "id": "viz.pie"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountId": 0,
+                "query": "SELECT count(*) FROM Log WHERE job = 'cloudwatch-forwarder' FACET region SINCE 1 day ago"
+              }
+            ]
+          }
+        },
+        {
+          "title": "Log Ingestion Rate",
+          "layout": {
+            "column": 1,
+            "row": 5,
+            "width": 6,
+            "height": 3
+          },
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountId": 0,
+                "query": "SELECT rate(count(*), 1 minute) FROM Log WHERE job = 'cloudwatch-forwarder' SINCE 1 day ago TIMESERIES"
+              }
+            ]
+          }
+        },
+        {
+          "title": "Recent Errors",
+          "layout": {
+            "column": 7,
+            "row": 5,
+            "width": 6,
+            "height": 3
+          },
+          "visualization": {
+            "id": "viz.table"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountId": 0,
+                "query": "SELECT timestamp, message, log_group FROM Log WHERE job = 'cloudwatch-forwarder' AND (message LIKE '%error%' OR message LIKE '%ERROR%' OR message LIKE '%Exception%' OR message LIKE '%Error%') SINCE 1 hour ago"
+              }
+            ]
+          }
+        },
+        {
+          "title": "Last 24h Log Count",
+          "layout": {
+            "column": 11,
+            "row": 1,
+            "width": 2,
+            "height": 4
+          },
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountId": 0,
+                "query": "SELECT count(*) AS 'Total Logs (24h)' FROM Log WHERE job = 'cloudwatch-forwarder' SINCE 1 day ago"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
