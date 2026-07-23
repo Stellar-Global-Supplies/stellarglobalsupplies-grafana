@@ -61,7 +61,7 @@ jobs:
           cd /tmp/repo-state
           git checkout state 2>/dev/null || git checkout --orphan state
           # Copy only the state file from main workspace
-          cp /home/runner/work/${{ github.repository }}/${{ github.repository }}/metrics-state.json metrics-state.json
+          cp ${{ github.workspace }}/metrics-state.json metrics-state.json
           git add metrics-state.json
           if git diff --cached --quiet; then
             echo "metrics-state.json unchanged — nothing to commit"
