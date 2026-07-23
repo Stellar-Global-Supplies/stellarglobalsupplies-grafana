@@ -1,6 +1,6 @@
-# CloudWatch Logs & Metrics → Splunk Observability Cloud — Setup Guide
+# CloudWatch Logs & Metrics → New Relic — Setup Guide
 
-End-to-end guide for shipping CloudWatch logs and metrics to **Splunk Observability Cloud** via GitHub Actions workflows, with state stored in `state.json` / `metrics-state.json` in the repo.
+End-to-end guide for shipping CloudWatch logs and metrics to **New Relic** via GitHub Actions workflows, with state stored in `state.json` / `metrics-state.json` in the repo.
 
 **No CloudFormation. No AWS integration. Pure push from GitHub Actions only.**
 
@@ -15,98 +15,69 @@ GitHub Actions (cron-based, OIDC auth)
         ├── Run forwarder.py
         │       ├── Discover all CloudWatch log groups
         │       ├── Fetch events since last run (from state.json)
-        │       ├── Push to Splunk HEC (HTTP Event Collector)
+        │       ├── Push to New Relic Log API (HTTP POST JSON)
         │       └── Update state.json with new timestamps
         ├── Run forward-metrics.py
         │       ├── Discover S3, DynamoDB, Lambda, API Gateway resources
         │       ├── Fetch CloudWatch metrics
-        │       ├── Push to Splunk SignalFx ingest API
+        │       ├── Push to New Relic Metric API (HTTP POST JSON)
         │       └── Update metrics-state.json
         └── Commit updated state files back to repo
 ```
 
-**Cost: $0 forever.** Splunk Observability Cloud Free Edition, no credit card, no expiry.
+**Cost: $0 forever.** New Relic Free Edition — 100 GB/month ingest, no credit card, no expiry.
 
 ---
 
 ## Endpoint Reference
 
-| Signal | URL | Auth |
-|--------|-----|------|
-| Logs | `https://http-inputs-<SPLUNK_HOST>/services/collector/event` | `Authorization: Splunk <HEC_TOKEN>` |
-| Metrics | `https://ingest.<REALM>.signalfx.com/v2/datapoint` | `X-SF-Token: <INGEST_TOKEN>` |
+| Signal  | URL                                          | Auth Header             |
+|---------|----------------------------------------------|-------------------------|
+| Logs    | `https://log-api.newrelic.com/log/v1`        | `Api-Key: <LICENSE_KEY>` |
+| Metrics | `https://metric-api.newrelic.com/metric/v1`  | `Api-Key: <LICENSE_KEY>` |
 
-Your `<REALM>` is shown in Settings → your username → Organizations (e.g. `us0`, `us1`, `eu0`).
+> **EU accounts:** use `log-api.eu.newrelic.com` and `metric-api.eu.newrelic.com` and set the `NEW_RELIC_LOGS_URL` / `NEW_RELIC_METRICS_URL` GitHub Variables accordingly.
 
 ---
 
 ## Prerequisites
 
-| Tool | Min version |
-|------|-------------|
-| AWS CLI | 2.x |
-| Python | 3.12 |
+| Tool                | Min version   |
+|---------------------|---------------|
+| AWS CLI             | 2.x           |
+| Python              | 3.12          |
 | GitHub Actions runner | ubuntu-latest |
 
 ---
-sg0
-## Step 1 — Sign up for Splunk Observability Cloud
 
-1. Go to https://www.splunk.com/en_us/products/observability-cloud.html
-2. Click **Get started free** → **Free Edition**
-3. No credit card required
-4. After login, note your **realm**: Settings → your username → Organizations section (e.g. `us0`, `eu0`)
+## Step 1 — Sign up for New Relic
 
----
+1. Go to https://newrelic.com/signup
+2. Fill in the form — **no credit card required**
+3. Choose **US** or **EU** data centre (you can't change this later)
+4. After login you land on the New Relic home page
 
-## Step 2 — Create Ingest Token (Metrics)
-
-1. In Splunk Observability Cloud, go to **Settings** → **Access Tokens**
-2. Click **Create Token**
-   - Name: `github-actions-ingest`
-   - Scope: **Ingest**
-3. Copy the token value
-4. Save as GitHub secret: `SPLUNK_INGEST_TOKEN`
-
----
-aYaduqQ0aqK3rcTXp5A4OA
-## Step 3 — Set up Splunk Cloud for Logs (HEC)
-
-Splunk Observability Cloud free edition bundles a Splunk Cloud instance for log ingestion.
-
-### 3.1 Provision Splunk Cloud
-
-1. In Splunk Observability Cloud, go to **Settings** → **Log Observer** → **Connect to Splunk Cloud**
-2. Follow the wizard — it provisions your Splunk Cloud instance
-3. Once provisioned, you'll see a button to **Open Splunk Cloud** or a URL like `https://prd-p-xxxxxx.splunkcloud.com`
-
-### 3.2 Create HEC Token in Splunk Cloud
-
-1. Open your Splunk Cloud instance URL (e.g. `https://prd-p-xxxxxx.splunkcloud.com`)
-2. Log in with your Splunk credentials
-3. In the top menu, go to **Settings** → **Data Inputs**
-4. Click **HTTP Event Collector (HEC)**
-5. If HEC is not enabled, click **Enable** to turn it on
-6. Click **New Token** (or **Add** → **HTTP Event Collector**)
-7. Fill in the form:
-   - **Name:** `cloudwatch-logs`
-   - **Source type:** `aws:cloudwatch`
-   - **Index:** `main`
-   - **Output group:** Default (or your preferred group)
-8. **Important:** After creating the token, click on the token name to edit it:
-   - Scroll to **Advanced Settings**
-   - **Disable** "Indexer acknowledgement" (required for this integration)
-   - Click **Save**
-9. Copy the **Token** value (shown as a long string) → save as GitHub secret: `SPLUNK_HEC_TOKEN`
-10. Note your Splunk Cloud hostname (format: `prd-p-xxxxxx.splunkcloud.com`) → save as GitHub secret: `SPLUNK_HEC_HOST`
-
-**Alternative path if you can't find HEC:**
-- In Splunk Cloud, use the search bar (top) and type "HTTP Event Collector"
-- Or go to: **Apps** → **Search & Reporting** → **Settings** (gear icon) → **Data Inputs**
+Free tier includes:
+- 100 GB/month ingest (logs + metrics combined)
+- 1 full platform user
+- Unlimited basic (read-only) users
+- Full dashboard and alerting access
 
 ---
 
-## Step 4 — AWS Preparation (OIDC)
+## Step 2 — Get your License Key
+
+The license key is the single credential used for both logs and metrics.
+
+1. In New Relic, click your **user icon** (bottom-left) → **API Keys**
+2. Find the key of type **INGEST - LICENSE** (it starts with `NRAK-...`)
+3. If none exists, click **Create a key** → Type: **Ingest - License**
+4. Copy the key value
+5. Save as GitHub secret: `NEW_RELIC_LICENSE_KEY`
+
+---
+
+## Step 3 — AWS Preparation (OIDC)
 
 This lets GitHub Actions assume an IAM role without long-lived keys.
 
@@ -140,24 +111,24 @@ cat > /tmp/trust.json <<'EOF'
 EOF
 
 aws iam create-role \
-  --role-name gha-cwlogs-splunk-deploy \
+  --role-name gha-cwlogs-newrelic-deploy \
   --assume-role-policy-document file:///tmp/trust.json
 
 # 3. Attach permissions
 aws iam attach-role-policy \
-  --role-name gha-cwlogs-splunk-deploy \
+  --role-name gha-cwlogs-newrelic-deploy \
   --policy-arn arn:aws:iam::aws:policy/PowerUserAccess
 
 # Note the role ARN
-aws iam get-role --role-name gha-cwlogs-splunk-deploy \
+aws iam get-role --role-name gha-cwlogs-newrelic-deploy \
   --query Role.Arn --output text
 ```
 
 ---
 
-## Step 5 — IAM Permissions
+## Step 4 — IAM Permissions
 
-Attach additional permissions for Lambda and API Gateway:
+Attach additional permissions for all services being monitored:
 
 ```json
 {
@@ -182,66 +153,95 @@ Attach additional permissions for Lambda and API Gateway:
 
 ```bash
 aws iam create-policy \
-  --policy-name gha-cwlogs-splunk-policy \
-  --policy-document file:///tmp/splunk-policy.json
+  --policy-name gha-cwlogs-newrelic-policy \
+  --policy-document file:///tmp/newrelic-policy.json
 
 aws iam attach-role-policy \
-  --role-name gha-cwlogs-splunk-deploy \
-  --policy-arn arn:aws:iam::YOUR_ACCOUNT_ID:policy/gha-cwlogs-splunk-policy
+  --role-name gha-cwlogs-newrelic-deploy \
+  --policy-arn arn:aws:iam::YOUR_ACCOUNT_ID:policy/gha-cwlogs-newrelic-policy
 ```
 
 ---
 
-## Step 6 — Repository Setup
+## Step 5 — Repository Setup
 
-### 6.1 GitHub Secrets (Settings → Secrets and variables → Actions)
+### 5.1 GitHub Secrets (Settings → Secrets and variables → Actions)
 
-| Secret | Value |
-|--------|-------|
-| `AWS_DEPLOY_ROLE_ARN` | ARN from Step 4 |
-| `SPLUNK_HEC_TOKEN` | HEC token from Step 3 |
-| `SPLUNK_HEC_HOST` | Splunk Cloud hostname from Step 3 |
-| `SPLUNK_INGEST_TOKEN` | Ingest token from Step 2 |
-| `SPLUNK_REALM` | Your realm (e.g. `us0`, `eu0`) |
+| Secret                  | Value                          |
+|-------------------------|--------------------------------|
+| `AWS_DEPLOY_ROLE_ARN`   | ARN from Step 3                |
+| `NEW_RELIC_LICENSE_KEY` | License key from Step 2        |
 
-### 6.2 GitHub Variables (Settings → Variables)
+### 5.2 GitHub Variables (Settings → Variables)
 
-| Variable | Value |
-|----------|-------|
-| `AWS_REGION` | `us-east-1` (or your AWS region) |
-| `LOG_GROUP_PREFIX` | (optional) Filter prefix for log groups |
-| `BATCH_SIZE` | `500` |
-| `LOOKBACK_HOURS` | `5` |
+| Variable              | Value                                              |
+|-----------------------|----------------------------------------------------|
+| `AWS_REGION`          | `us-east-1` (or your AWS region)                  |
+| `LOG_GROUP_PREFIX`    | (optional) Filter prefix for log groups            |
+| `BATCH_SIZE`          | `500`                                              |
+| `LOOKBACK_HOURS`      | `5`                                                |
+| `NEW_RELIC_LOGS_URL`  | `https://log-api.newrelic.com/log/v1` *(EU: `https://log-api.eu.newrelic.com/log/v1`)* |
+| `NEW_RELIC_METRICS_URL` | `https://metric-api.newrelic.com/metric/v1` *(EU: `https://metric-api.eu.newrelic.com/metric/v1`)* |
 
-### 6.3 Push to main
+> `NEW_RELIC_LOGS_URL` and `NEW_RELIC_METRICS_URL` are optional — scripts default to US endpoints. Only set them if you're on the EU data centre.
+
+### 5.3 Push to main
 
 ```bash
 git add .
-git commit -m "Initial setup: CloudWatch → Splunk forwarder"
+git commit -m "chore: switch forwarder target from Splunk to New Relic"
 git push origin main
 ```
 
 Once pushed:
 - `forward-logs.yml` — Runs every 5 minutes via cron
 - `forward-metrics.yml` — Runs every 5 minutes via cron
-- Both are manually triggerable from the Actions tab
 
 ---
 
-## Step 7 — Verify Data in Splunk
+## Step 6 — Verify Data in New Relic
 
 ### Check Logs
 
-1. Open **Splunk Cloud** → **Search**
-2. Run: `index=main sourcetype="aws:cloudwatch"`
-3. Should show events within 10 minutes of first workflow run
-4. In **Splunk Observability Cloud** → **Log Observer** → same logs via Log Observer Connect
+1. In New Relic, go to **Logs** (left sidebar)
+2. Search: `log_group:*` or filter by `source: aws:cloudwatch`
+3. Logs should appear within 5–10 minutes of first workflow run
 
 ### Check Metrics
 
-1. In **Splunk Observability Cloud**, go to **Metrics Finder**
-2. Search: `aws.s3.BucketSizeBytes` or `aws.lambda.Invocations`
-3. Should appear within 10 minutes of first workflow run
+1. In New Relic, go to **Query Your Data** (top nav, looks like a chart icon)
+2. Run an NRQL query:
+   ```sql
+   SELECT latest(value) FROM Metric
+   WHERE metricName LIKE 'aws.lambda%'
+   FACET function_name
+   SINCE 1 hour ago
+   ```
+3. Or for S3:
+   ```sql
+   SELECT latest(value) FROM Metric
+   WHERE metricName = 'aws.s3.BucketSizeBytes.Average'
+   FACET bucket
+   SINCE 1 day ago
+   ```
+
+---
+
+## Metric Naming Reference
+
+All metrics pushed use the pattern `aws.<service>.<MetricName>.<Stat>`:
+
+| Service     | Example metric name                              |
+|-------------|--------------------------------------------------|
+| S3          | `aws.s3.BucketSizeBytes.Average`                 |
+| S3          | `aws.s3.4xxErrors.Sum`                           |
+| DynamoDB    | `aws.dynamodb.ConsumedReadCapacityUnits.Sum`      |
+| DynamoDB    | `aws.dynamodb.SuccessfulRequestLatency.Average`   |
+| Lambda      | `aws.lambda.Invocations.Sum`                     |
+| Lambda      | `aws.lambda.Duration.Average`                    |
+| Lambda      | `aws.lambda.Errors.Sum`                          |
+| API Gateway | `aws.apigateway.Count.Sum`                       |
+| API Gateway | `aws.apigateway.Latency.Average`                 |
 
 ---
 
@@ -256,7 +256,7 @@ cat metrics-state.json | jq .
 
 ### Manually trigger a run
 
-From GitHub → **Actions** → **CloudWatch Logs → Splunk** or **CloudWatch Metrics → Splunk** → **Run workflow**
+GitHub → **Actions** → **CloudWatch Logs → New Relic** or **CloudWatch Metrics → New Relic** → **Run workflow**
 
 ### Reset state (force re-send)
 
@@ -281,20 +281,21 @@ schedule:
 
 ## Troubleshooting
 
-| Symptom | Likely cause | Fix |
-|---------|--------------|-----|
-| HEC returns 403 | Token disabled | Re-enable in Splunk Cloud → Settings → HEC |
-| HEC returns 400 | Indexer acknowledgement is ON | Disable it in HEC token settings |
-| Metrics not in Finder | Wrong `SPLUNK_REALM` | Check realm matches your org exactly |
-| `X-SF-Token` rejected (401) | Token scope is `API` not `Ingest` | Create new token with scope **Ingest** |
-| `lambda:ListFunctions` denied | Missing IAM permission | Add policy from Step 5 |
-| No logs in Splunk Search | Wrong `SPLUNK_HEC_HOST` | Verify hostname matches Splunk Cloud instance |
-| Duplicate events | Workflow running concurrently | `concurrency` block is already in workflow — ensure it's present |
+| Symptom                          | Likely cause                        | Fix                                              |
+|----------------------------------|-------------------------------------|--------------------------------------------------|
+| Log API returns 403              | Wrong or expired license key        | Re-generate key in New Relic → API Keys          |
+| Log API returns 413              | Batch too large                     | Reduce `BATCH_SIZE` to `200`                     |
+| Metric API returns 400           | Malformed payload or bad value type | Check logs for the exact metric name + value     |
+| No logs in New Relic Logs        | Wrong data centre (US vs EU)        | Set `NEW_RELIC_LOGS_URL` to EU endpoint          |
+| No metrics in Query Your Data    | Wrong data centre                   | Set `NEW_RELIC_METRICS_URL` to EU endpoint       |
+| `lambda:ListFunctions` denied    | Missing IAM permission              | Add policy from Step 4                           |
+| Duplicate events                 | Workflow running concurrently       | Ensure `concurrency` block is present in workflow|
+| 100 GB limit hit mid-month       | Too much log data                   | Add `LOG_GROUP_PREFIX` to filter noisier groups  |
 
 ---
 
 ## Security Notes
 
-- Splunk tokens live **only** in GitHub secrets — never in code or repo files.
+- New Relic license key lives **only** in GitHub secrets — never in code or repo files.
 - The GHA deploy role uses **OIDC** — no long-lived AWS credentials stored in GitHub.
 - `state.json` and `metrics-state.json` contain only resource names and timestamps — no sensitive data.

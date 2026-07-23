@@ -1,8 +1,8 @@
 """
-CloudWatch Metrics → Splunk SignalFx forwarder
+CloudWatch Metrics → New Relic Metric API forwarder (GitHub Actions version)
 - Discovers S3 buckets, DynamoDB tables, Lambda functions, API Gateway APIs
 - Fetches key CloudWatch metrics
-- Pushes to Splunk SignalFx ingest API
+- Pushes to New Relic Metric API (HTTP POST, JSON)
 - Tracks last-fetch time in metrics-state.json
 """
 
@@ -25,27 +25,27 @@ handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"
 logger.addHandler(handler)
 
 # ── Env vars ─────────────────────────────────────────────────────────────────
-SPLUNK_INGEST_TOKEN = os.environ["SPLUNK_INGEST_TOKEN"]   # SignalFx ingest token
-SPLUNK_REALM        = os.environ.get("SPLUNK_REALM", "us0")   # e.g. us0, eu0
-AWS_REGION          = os.environ.get("AWS_REGION", "us-east-1")
-STATE_FILE          = os.environ.get("METRICS_STATE_FILE") or "metrics-state.json"
-LOOKBACK_MINUTES    = int(os.environ.get("LOOKBACK_MINUTES") or "10")
-BATCH_SIZE          = int(os.environ.get("BATCH_SIZE") or "500")
-METRICS_PERIOD      = int(os.environ.get("METRICS_PERIOD") or "300")
-
-# ── Splunk SignalFx endpoint ─────────────────────────────────────────────────
-SPLUNK_METRIC_URL = f"https://ingest.{SPLUNK_REALM}.signalfx.com/v2/datapoint"
+NR_LICENSE_KEY  = os.environ["NEW_RELIC_LICENSE_KEY"]          # New Relic ingest license key
+NR_METRICS_URL  = os.environ.get(                              # override for EU: metric-api.eu.newrelic.com
+    "NEW_RELIC_METRICS_URL",
+    "https://metric-api.newrelic.com/metric/v1",
+)
+AWS_REGION      = os.environ.get("AWS_REGION", "us-east-1")
+STATE_FILE      = os.environ.get("METRICS_STATE_FILE") or "metrics-state.json"
+LOOKBACK_MINUTES = int(os.environ.get("LOOKBACK_MINUTES") or "10")
+BATCH_SIZE      = int(os.environ.get("BATCH_SIZE") or "500")
+METRICS_PERIOD  = int(os.environ.get("METRICS_PERIOD") or "300")
 
 # ── AWS clients ──────────────────────────────────────────────────────────────
-cloudwatch = boto3.client("cloudwatch", region_name=AWS_REGION)
-s3_client  = boto3.client("s3", region_name=AWS_REGION)
-dynamodb   = boto3.client("dynamodb", region_name=AWS_REGION)
-lambda_client = boto3.client("lambda", region_name=AWS_REGION)
-apigw_client  = boto3.client("apigateway", region_name=AWS_REGION)
+cloudwatch    = boto3.client("cloudwatch",  region_name=AWS_REGION)
+s3_client     = boto3.client("s3",          region_name=AWS_REGION)
+dynamodb      = boto3.client("dynamodb",    region_name=AWS_REGION)
+lambda_client = boto3.client("lambda",      region_name=AWS_REGION)
+apigw_client  = boto3.client("apigateway",  region_name=AWS_REGION)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# State file helpers
+# State file helpers  (unchanged from original)
 # ─────────────────────────────────────────────────────────────────────────────
 
 def load_state() -> dict:
@@ -70,7 +70,7 @@ def save_state(state: dict) -> None:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Resource discovery
+# Resource discovery  (unchanged from original)
 # ─────────────────────────────────────────────────────────────────────────────
 
 def list_s3_buckets() -> list[str]:
@@ -118,41 +118,41 @@ def list_apigw_apis() -> list[str]:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# CloudWatch metric helpers
+# CloudWatch metric definitions  (unchanged from original)
 # ─────────────────────────────────────────────────────────────────────────────
 
 S3_STORAGE_METRICS = [
-    {"name": "BucketSizeBytes", "stat": "Average", "unit": "Bytes"},
-    {"name": "NumberOfObjects", "stat": "Average", "unit": "Count"},
+    {"name": "BucketSizeBytes",  "stat": "Average", "unit": "Bytes"},
+    {"name": "NumberOfObjects",  "stat": "Average", "unit": "Count"},
 ]
 
 S3_REQUEST_METRICS = [
-    {"name": "GetObject",      "stat": "Sum", "unit": "Count"},
-    {"name": "PutObject",      "stat": "Sum", "unit": "Count"},
-    {"name": "HeadObject",     "stat": "Sum", "unit": "Count"},
-    {"name": "ListBucket",     "stat": "Sum", "unit": "Count"},
-    {"name": "GetObjectAcl",   "stat": "Sum", "unit": "Count"},
-    {"name": "PutObjectAcl",   "stat": "Sum", "unit": "Count"},
-    {"name": "DeleteObject",   "stat": "Sum", "unit": "Count"},
-    {"name": "PostObject",     "stat": "Sum", "unit": "Count"},
-    {"name": "CopyObject",     "stat": "Sum", "unit": "Count"},
-    {"name": "HeadBucket",     "stat": "Sum", "unit": "Count"},
-    {"name": "4xxErrors",      "stat": "Sum", "unit": "Count"},
-    {"name": "5xxErrors",      "stat": "Sum", "unit": "Count"},
+    {"name": "GetObject",     "stat": "Sum", "unit": "Count"},
+    {"name": "PutObject",     "stat": "Sum", "unit": "Count"},
+    {"name": "HeadObject",    "stat": "Sum", "unit": "Count"},
+    {"name": "ListBucket",    "stat": "Sum", "unit": "Count"},
+    {"name": "GetObjectAcl",  "stat": "Sum", "unit": "Count"},
+    {"name": "PutObjectAcl",  "stat": "Sum", "unit": "Count"},
+    {"name": "DeleteObject",  "stat": "Sum", "unit": "Count"},
+    {"name": "PostObject",    "stat": "Sum", "unit": "Count"},
+    {"name": "CopyObject",    "stat": "Sum", "unit": "Count"},
+    {"name": "HeadBucket",    "stat": "Sum", "unit": "Count"},
+    {"name": "4xxErrors",     "stat": "Sum", "unit": "Count"},
+    {"name": "5xxErrors",     "stat": "Sum", "unit": "Count"},
 ]
 
 DYNAMODB_METRICS = [
-    {"name": "ConsumedReadCapacityUnits",  "stat": "Sum", "unit": "Count"},
-    {"name": "ConsumedWriteCapacityUnits", "stat": "Sum", "unit": "Count"},
+    {"name": "ConsumedReadCapacityUnits",     "stat": "Sum",     "unit": "Count"},
+    {"name": "ConsumedWriteCapacityUnits",    "stat": "Sum",     "unit": "Count"},
     {"name": "ProvisionedReadCapacityUnits",  "stat": "Average", "unit": "Count"},
     {"name": "ProvisionedWriteCapacityUnits", "stat": "Average", "unit": "Count"},
-    {"name": "ThrottledRequests",         "stat": "Sum", "unit": "Count"},
-    {"name": "ReadThrottleEvents",        "stat": "Sum", "unit": "Count"},
-    {"name": "WriteThrottleEvents",       "stat": "Sum", "unit": "Count"},
-    {"name": "SystemErrors",             "stat": "Sum", "unit": "Count"},
-    {"name": "UserErrors",               "stat": "Sum", "unit": "Count"},
-    {"name": "ReturnedItemCount",        "stat": "Sum", "unit": "Count"},
-    {"name": "SuccessfulRequestLatency", "stat": "Average", "unit": "Milliseconds"},
+    {"name": "ThrottledRequests",             "stat": "Sum",     "unit": "Count"},
+    {"name": "ReadThrottleEvents",            "stat": "Sum",     "unit": "Count"},
+    {"name": "WriteThrottleEvents",           "stat": "Sum",     "unit": "Count"},
+    {"name": "SystemErrors",                  "stat": "Sum",     "unit": "Count"},
+    {"name": "UserErrors",                    "stat": "Sum",     "unit": "Count"},
+    {"name": "ReturnedItemCount",             "stat": "Sum",     "unit": "Count"},
+    {"name": "SuccessfulRequestLatency",      "stat": "Average", "unit": "Milliseconds"},
 ]
 
 LAMBDA_METRICS = [
@@ -171,6 +171,10 @@ APIGW_METRICS = [
     {"name": "IntegrationLatency", "stat": "Average", "unit": "Milliseconds"},
 ]
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CloudWatch fetch helper  (unchanged from original)
+# ─────────────────────────────────────────────────────────────────────────────
 
 def fetch_metric(
     namespace: str,
@@ -202,76 +206,110 @@ def fetch_metric(
         return []
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# New Relic Metric API helpers
+# ─────────────────────────────────────────────────────────────────────────────
+
 def build_metric_object(
     metric_name: str,
     value: float,
-    timestamp: int,
-    dimensions: dict,
+    timestamp_ms: int,
+    attributes: dict,
+    interval_ms: int = 300_000,
 ) -> dict:
     """
-    Build a Splunk SignalFx gauge datapoint.
-    Renames custom.cloudwatch.* prefix to aws.* for cleaner naming in Splunk.
+    Build a New Relic Metric API datapoint.
+
+    New Relic supports three metric types:
+      - gauge   : a value at a point in time (e.g. BucketSizeBytes, Duration)
+      - count   : a delta count over an interval (e.g. Invocations, Errors)
+      - summary : min/max/sum/count rollup — not used here, we keep it simple
+
+    We map CloudWatch "Sum" stats → count, everything else → gauge.
+    The interval_ms must match METRICS_PERIOD so NR can compute rates correctly.
+
+    Payload shape (one item in the outer array's "metrics" list):
+    {
+      "name":       "aws.s3.BucketSizeBytes.Average",
+      "type":       "gauge",
+      "value":      12345.0,
+      "timestamp":  1234567890000,   # epoch ms
+      "interval.ms": 300000,         # required for count type
+      "attributes": { "bucket": "my-bucket", ... }
+    }
     """
-    sfx_name = metric_name.replace("custom.cloudwatch.", "aws.")
+    # "Sum" stats represent accumulated counts over the period → NR count type
+    nr_type = "count" if metric_name.endswith(".Sum") else "gauge"
+
     return {
-        "metric": sfx_name,
-        "value": value,
-        "timestamp": timestamp,
-        "dimensions": {k: str(v) for k, v in dimensions.items()},
+        "name":          metric_name,
+        "type":          nr_type,
+        "value":         float(value),
+        "timestamp":     timestamp_ms,
+        "interval.ms":   interval_ms,
+        "attributes":    {k: str(v) for k, v in attributes.items()},
     }
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Splunk SignalFx push
-# ─────────────────────────────────────────────────────────────────────────────
-
-def build_splunk_metric_payload(metrics: list[dict]) -> dict:
+def build_nr_metric_payload(metrics: list[dict]) -> list[dict]:
     """
-    Splunk SignalFx gauge format:
-    { "gauge": [ { "metric": "aws.s3.BucketSizeBytes", "value": 123,
-                   "timestamp": <epoch_ms>, "dimensions": {...} } ] }
+    New Relic Metric API envelope:
+    [
+      {
+        "common": {
+          "attributes": { "forwarder": "github-actions", "aws.region": "us-east-1" },
+          "interval.ms": 300000
+        },
+        "metrics": [ <metric objects> ]
+      }
+    ]
     """
-    return {"gauge": metrics}
+    return [
+        {
+            "common": {
+                "attributes": {
+                    "forwarder":  "github-actions",
+                    "aws.region": AWS_REGION,
+                },
+                "interval.ms": METRICS_PERIOD * 1000,
+            },
+            "metrics": metrics,
+        }
+    ]
 
 
-def push_to_splunk_metrics(payload: dict) -> None:
-    """Push metrics to Splunk SignalFx ingest API."""
-    if not payload.get("gauge"):
+def push_to_nr_metrics(payload: list[dict]) -> None:
+    """Push metrics to New Relic Metric API."""
+    if not payload or not payload[0].get("metrics"):
         return
 
     body = json.dumps(payload).encode("utf-8")
 
     req = urllib.request.Request(
-        SPLUNK_METRIC_URL,
+        NR_METRICS_URL,
         data=body,
         headers={
             "Content-Type": "application/json",
-            "X-SF-Token": SPLUNK_INGEST_TOKEN,
+            "Api-Key":      NR_LICENSE_KEY,
         },
         method="POST",
     )
     try:
         with urllib.request.urlopen(req, timeout=30) as resp:
             body_text = resp.read().decode("utf-8", errors="replace")
-            logger.info("Splunk SignalFx response HTTP %d: %s", resp.status, body_text)
-            if resp.status not in (200, 204):
-                raise RuntimeError(f"Splunk metrics API returned HTTP {resp.status}: {body_text}")
+            logger.info("New Relic Metrics response HTTP %d: %s", resp.status, body_text)
+            if resp.status not in (200, 202):
+                raise RuntimeError(f"New Relic Metric API returned HTTP {resp.status}: {body_text}")
     except urllib.error.HTTPError as e:
         body_text = e.read().decode("utf-8", errors="replace")
-        raise RuntimeError(f"Splunk metrics API error {e.code}: {body_text}") from e
+        raise RuntimeError(f"New Relic Metric API error {e.code}: {body_text}") from e
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# S3 metrics collector
+# Per-service metric collectors  (logic unchanged, NR metric names used)
 # ─────────────────────────────────────────────────────────────────────────────
 
-def collect_s3_metrics(
-    bucket: str,
-    start_time: datetime,
-    end_time: datetime,
-    state: dict,
-) -> list[dict]:
-    """Collect S3 metrics for a bucket and return Splunk datapoint objects."""
+def collect_s3_metrics(bucket: str, start_time: datetime, end_time: datetime, state: dict) -> list[dict]:
     metrics = []
     now_ms = int(time.time() * 1000)
     state_key = f"s3:{bucket}"
@@ -284,7 +322,7 @@ def collect_s3_metrics(
         for dp in dps:
             ts = int(dp["Timestamp"].timestamp() * 1000)
             metrics.append(build_metric_object(
-                f"custom.cloudwatch.s3.{m['name']}.{m['stat']}",
+                f"aws.s3.{m['name']}.{m['stat']}",
                 dp[m["stat"]], ts,
                 {"bucket": bucket, "region": AWS_REGION, "source": "s3", "resource": bucket},
             ))
@@ -295,7 +333,7 @@ def collect_s3_metrics(
         for dp in dps:
             ts = int(dp["Timestamp"].timestamp() * 1000)
             metrics.append(build_metric_object(
-                f"custom.cloudwatch.s3.{m['name']}.{m['stat']}",
+                f"aws.s3.{m['name']}.{m['stat']}",
                 dp[m["stat"]], ts,
                 {"bucket": bucket, "region": AWS_REGION, "source": "s3", "resource": bucket},
             ))
@@ -304,17 +342,7 @@ def collect_s3_metrics(
     return metrics
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# DynamoDB metrics collector
-# ─────────────────────────────────────────────────────────────────────────────
-
-def collect_dynamodb_metrics(
-    table: str,
-    start_time: datetime,
-    end_time: datetime,
-    state: dict,
-) -> list[dict]:
-    """Collect DynamoDB metrics for a table and return Splunk datapoint objects."""
+def collect_dynamodb_metrics(table: str, start_time: datetime, end_time: datetime, state: dict) -> list[dict]:
     metrics = []
     now_ms = int(time.time() * 1000)
     state_key = f"dynamodb:{table}"
@@ -325,7 +353,7 @@ def collect_dynamodb_metrics(
         for dp in dps:
             ts = int(dp["Timestamp"].timestamp() * 1000)
             metrics.append(build_metric_object(
-                f"custom.cloudwatch.dynamodb.{m['name']}.{m['stat']}",
+                f"aws.dynamodb.{m['name']}.{m['stat']}",
                 dp[m["stat"]], ts,
                 {"table": table, "region": AWS_REGION, "source": "dynamodb", "resource": table},
             ))
@@ -334,17 +362,7 @@ def collect_dynamodb_metrics(
     return metrics
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Lambda metrics collector
-# ─────────────────────────────────────────────────────────────────────────────
-
-def collect_lambda_metrics(
-    fn: str,
-    start_time: datetime,
-    end_time: datetime,
-    state: dict,
-) -> list[dict]:
-    """Collect Lambda metrics for a function and return Splunk datapoint objects."""
+def collect_lambda_metrics(fn: str, start_time: datetime, end_time: datetime, state: dict) -> list[dict]:
     metrics = []
     now_ms = int(time.time() * 1000)
     state_key = f"lambda:{fn}"
@@ -356,7 +374,7 @@ def collect_lambda_metrics(
             ts = int(dp["Timestamp"].timestamp() * 1000)
             val = dp.get(m["stat"], dp.get("Average", dp.get("Sum", dp.get("Maximum", 0))))
             metrics.append(build_metric_object(
-                f"custom.cloudwatch.lambda.{m['name']}.{m['stat']}",
+                f"aws.lambda.{m['name']}.{m['stat']}",
                 val, ts,
                 {"function_name": fn, "region": AWS_REGION, "source": "lambda", "resource": fn},
             ))
@@ -365,17 +383,7 @@ def collect_lambda_metrics(
     return metrics
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# API Gateway metrics collector
-# ─────────────────────────────────────────────────────────────────────────────
-
-def collect_apigw_metrics(
-    api_id: str,
-    start_time: datetime,
-    end_time: datetime,
-    state: dict,
-) -> list[dict]:
-    """Collect API Gateway metrics for an API and return Splunk datapoint objects."""
+def collect_apigw_metrics(api_id: str, start_time: datetime, end_time: datetime, state: dict) -> list[dict]:
     metrics = []
     now_ms = int(time.time() * 1000)
     state_key = f"apigw:{api_id}"
@@ -387,7 +395,7 @@ def collect_apigw_metrics(
             ts = int(dp["Timestamp"].timestamp() * 1000)
             val = dp.get(m["stat"], dp.get("Average", dp.get("Sum", 0)))
             metrics.append(build_metric_object(
-                f"custom.cloudwatch.apigw.{m['name']}.{m['stat']}",
+                f"aws.apigateway.{m['name']}.{m['stat']}",
                 val, ts,
                 {"api_id": api_id, "region": AWS_REGION, "source": "apigateway", "resource": api_id},
             ))
@@ -397,13 +405,12 @@ def collect_apigw_metrics(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Main entry point
+# Main entry point  (unchanged from original)
 # ─────────────────────────────────────────────────────────────────────────────
 
 def main():
-    end_time   = datetime.now(timezone.utc)
-    start_time = end_time - timedelta(seconds=METRICS_PERIOD)
-    run_start_ms = int(time.time() * 1000)
+    end_time     = datetime.now(timezone.utc)
+    start_time   = end_time - timedelta(seconds=METRICS_PERIOD)
 
     state = load_state()
     state_modified = False
@@ -411,7 +418,7 @@ def main():
     stats = {"s3_buckets": 0, "dynamodb_tables": 0, "lambda_functions": 0, "apigw_apis": 0, "total_metrics": 0}
     all_metrics = []
 
-    # ── S3 metrics ────────────────────────────────────────────────────────
+    # ── S3 ────────────────────────────────────────────────────────────────
     buckets = list_s3_buckets()
     logger.info("Discovered %d S3 buckets", len(buckets))
     for bucket in buckets:
@@ -426,7 +433,7 @@ def main():
         except Exception as exc:
             logger.error("S3 %s: failed – %s", bucket, exc, exc_info=True)
 
-    # ── DynamoDB metrics ───────────────────────────────────────────────────
+    # ── DynamoDB ──────────────────────────────────────────────────────────
     tables = list_dynamodb_tables()
     logger.info("Discovered %d DynamoDB tables", len(tables))
     for table in tables:
@@ -441,7 +448,7 @@ def main():
         except Exception as exc:
             logger.error("DynamoDB %s: failed – %s", table, exc, exc_info=True)
 
-    # ── Lambda metrics ─────────────────────────────────────────────────────
+    # ── Lambda ────────────────────────────────────────────────────────────
     for fn in list_lambda_functions():
         try:
             metrics = collect_lambda_metrics(fn, start_time, end_time, state)
@@ -454,7 +461,7 @@ def main():
         except Exception as exc:
             logger.error("Lambda %s: failed – %s", fn, exc, exc_info=True)
 
-    # ── API Gateway metrics ────────────────────────────────────────────────
+    # ── API Gateway ───────────────────────────────────────────────────────
     for api_id in list_apigw_apis():
         try:
             metrics = collect_apigw_metrics(api_id, start_time, end_time, state)
@@ -467,13 +474,13 @@ def main():
         except Exception as exc:
             logger.error("APIGW %s: failed – %s", api_id, exc, exc_info=True)
 
-    # ── Push to Splunk SignalFx (in batches) ──────────────────────────────
+    # ── Push to New Relic Metric API (in batches) ─────────────────────────
     if all_metrics:
         for i in range(0, len(all_metrics), BATCH_SIZE):
             batch = all_metrics[i : i + BATCH_SIZE]
-            payload = build_splunk_metric_payload(batch)
+            payload = build_nr_metric_payload(batch)
             try:
-                push_to_splunk_metrics(payload)
+                push_to_nr_metrics(payload)
             except Exception as exc:
                 logger.error("Failed to push metrics batch: %s", exc)
 
