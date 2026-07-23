@@ -320,7 +320,7 @@
       "sha256": "c9b4e4703f4ea2f18a8a54361cc90d722ceda15be6c45b65205d63be994ba8c8",
       "source_file": "daily-costs.json",
       "total_points_tracked": 44
-    },
+    }
   },
   "updated_at": "2026-07-23T18:35:31.611384+00:00"
 }
