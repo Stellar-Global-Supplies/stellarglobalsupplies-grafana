@@ -44,7 +44,7 @@ jobs:
         env:
           NEW_RELIC_LICENSE_KEY: ${{ secrets.NEW_RELIC_LICENSE_KEY }}
           NEW_RELIC_REGION: eu
-          AWS_REGION: eu-west-1
+          AWS_REGION: us-east-1
           METRICS_STATE_FILE: metrics-state.json
           METRICS_PERIOD: "300"
           BATCH_SIZE: "500"
