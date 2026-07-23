@@ -1,0 +1,321 @@
+{
+  "period": "7-day",
+  "label": "Last 7 Days",
+  "generated_at": "2026-07-23T14:13:27Z",
+  "summary": {
+    "total_requests": 9154,
+    "unique_ips": 655,
+    "avg_daily": 1307,
+    "top_country": "Other (YTO)",
+    "mobile_pct": 0,
+    "desktop_pct": 100,
+    "bounce_rate": 0,
+    "peak_hour": "00:00",
+    "error_rate": 44.7,
+    "cache_hit_pct": 58.7,
+    "https_pct": 66.4
+  },
+  "traffic_over_time": [
+    {
+      "date": "2026-07-16",
+      "requests": 847
+    },
+    {
+      "date": "2026-07-17",
+      "requests": 1806
+    },
+    {
+      "date": "2026-07-18",
+      "requests": 935
+    },
+    {
+      "date": "2026-07-19",
+      "requests": 1012
+    },
+    {
+      "date": "2026-07-20",
+      "requests": 1108
+    },
+    {
+      "date": "2026-07-21",
+      "requests": 1790
+    },
+    {
+      "date": "2026-07-22",
+      "requests": 1088
+    },
+    {
+      "date": "2026-07-23",
+      "requests": 568
+    }
+  ],
+  "top_pages": [
+    {
+      "page": "/",
+      "visits": 621,
+      "bounce_pct": 0
+    },
+    {
+      "page": "/robots.txt",
+      "visits": 192,
+      "bounce_pct": 0
+    },
+    {
+      "page": "/sitemap.xml",
+      "visits": 96,
+      "bounce_pct": 0
+    },
+    {
+      "page": "/img/logo.jpg",
+      "visits": 87,
+      "bounce_pct": 0
+    },
+    {
+      "page": "/favicon.ico",
+      "visits": 75,
+      "bounce_pct": 0
+    },
+    {
+      "page": "/_next/static/chunks/main-app-d5620e70a49b8edc.js",
+      "visits": 68,
+      "bounce_pct": 0
+    },
+    {
+      "page": "/_next/static/chunks/webpack-41911694025b1dc5.js",
+      "visits": 67,
+      "bounce_pct": 0
+    },
+    {
+      "page": "/_next/static/chunks/23-2c73b82a93a01c2d.js",
+      "visits": 65,
+      "bounce_pct": 0
+    },
+    {
+      "page": "/_next/static/chunks/fd9d1056-b778a18b0daf24fe.js",
+      "visits": 64,
+      "bounce_pct": 0
+    },
+    {
+      "page": "/img/SS-Circles.jpg",
+      "visits": 61,
+      "bounce_pct": 0
+    }
+  ],
+  "geo_distribution": [
+    {
+      "country": "Other (YTO)",
+      "requests": 3545,
+      "pct": 39
+    },
+    {
+      "country": "USA",
+      "requests": 1754,
+      "pct": 19
+    },
+    {
+      "country": "India",
+      "requests": 701,
+      "pct": 8
+    },
+    {
+      "country": "Singapore",
+      "requests": 642,
+      "pct": 7
+    },
+    {
+      "country": "Other (ZRH)",
+      "requests": 600,
+      "pct": 7
+    },
+    {
+      "country": "Other (PNQ)",
+      "requests": 270,
+      "pct": 3
+    },
+    {
+      "country": "Other (MRS)",
+      "requests": 246,
+      "pct": 3
+    },
+    {
+      "country": "France",
+      "requests": 224,
+      "pct": 2
+    }
+  ],
+  "device_split": [
+    {
+      "device": "Desktop",
+      "pct": 100
+    }
+  ],
+  "peak_hours": [
+    {
+      "hour": 0,
+      "requests": 9154
+    },
+    {
+      "hour": 1,
+      "requests": 0
+    },
+    {
+      "hour": 2,
+      "requests": 0
+    },
+    {
+      "hour": 3,
+      "requests": 0
+    },
+    {
+      "hour": 4,
+      "requests": 0
+    },
+    {
+      "hour": 5,
+      "requests": 0
+    },
+    {
+      "hour": 6,
+      "requests": 0
+    },
+    {
+      "hour": 7,
+      "requests": 0
+    },
+    {
+      "hour": 8,
+      "requests": 0
+    },
+    {
+      "hour": 9,
+      "requests": 0
+    },
+    {
+      "hour": 10,
+      "requests": 0
+    },
+    {
+      "hour": 11,
+      "requests": 0
+    },
+    {
+      "hour": 12,
+      "requests": 0
+    },
+    {
+      "hour": 13,
+      "requests": 0
+    },
+    {
+      "hour": 14,
+      "requests": 0
+    },
+    {
+      "hour": 15,
+      "requests": 0
+    },
+    {
+      "hour": 16,
+      "requests": 0
+    },
+    {
+      "hour": 17,
+      "requests": 0
+    },
+    {
+      "hour": 18,
+      "requests": 0
+    },
+    {
+      "hour": 19,
+      "requests": 0
+    },
+    {
+      "hour": 20,
+      "requests": 0
+    },
+    {
+      "hour": 21,
+      "requests": 0
+    },
+    {
+      "hour": 22,
+      "requests": 0
+    },
+    {
+      "hour": 23,
+      "requests": 0
+    }
+  ],
+  "status_distribution": [
+    {
+      "status": "2xx",
+      "count": 1927,
+      "pct": 21.1
+    },
+    {
+      "status": "3xx",
+      "count": 3130,
+      "pct": 34.2
+    },
+    {
+      "status": "4xx",
+      "count": 4092,
+      "pct": 44.7
+    },
+    {
+      "status": "5xx",
+      "count": 0,
+      "pct": 0.0
+    }
+  ],
+  "browser_distribution": [
+    {
+      "browser": "Other",
+      "pct": 100.0
+    }
+  ],
+  "os_distribution": [
+    {
+      "os": "Other",
+      "pct": 100.0
+    }
+  ],
+  "method_distribution": [
+    {
+      "method": "GET",
+      "pct": 99.5
+    },
+    {
+      "method": "POST",
+      "pct": 0.4
+    },
+    {
+      "method": "HEAD",
+      "pct": 0.1
+    }
+  ],
+  "top_referrers": [],
+  "cache_distribution": {
+    "hit_pct": 58.7,
+    "miss_pct": 41.3
+  },
+  "response_metrics": {
+    "avg_response_size_bytes": 29986,
+    "avg_request_size_bytes": 212,
+    "avg_response_time_seconds": 0.203,
+    "total_bytes_transferred": 274492234
+  },
+  "meta_insights": {
+    "recommended_objective": "Awareness",
+    "top_locations": [
+      "Other (YTO)",
+      "USA",
+      "India"
+    ],
+    "best_placement": "Feed + Right Column",
+    "best_ad_time": "00:00 \u2013 03:00 UTC",
+    "warm_audience_size": 2746,
+    "high_intent_visits": 7
+  }
+}
