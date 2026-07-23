@@ -52,10 +52,12 @@ jobs:
         run: python forward-metrics.py
 
       - name: Commit and push metrics-state.json to state branch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Clone repo fresh into temp directory to avoid conflicts
           rm -rf /tmp/repo-state
-          git clone https://github.com/${{ github.repository }}.git /tmp/repo-state
+          git clone https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git /tmp/repo-state
           cd /tmp/repo-state
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
