@@ -18,7 +18,7 @@ CloudFront Access Logs (S3)
          │       ├── Converts to 50+ New Relic metrics
          │       └── Pushes to New Relic Metric API (aws.webtraffic.*)
          │
-         └── GitHub Actions (every 8 hours)
+         └── GitHub Actions (every 4 hours)
                  ├── Processes logs
                  ├── Forwards metrics
                  └── Commits report to state branch
@@ -30,7 +30,7 @@ CloudFront Access Logs (S3)
 |------|---------|
 | `webtraffic_processor.py` | Processes CloudFront logs from S3, generates JSON report |
 | `forward-web-traffic.py` | Reads report and forwards metrics to New Relic |
-| `.github/workflows/forward-web-traffic.yml` | GitHub Actions workflow (runs every 8 hours) |
+| `.github/workflows/forward-web-traffic.yml` | GitHub Actions workflow (runs every 4 hours) |
 | `dashboard.json` | New Relic dashboard configuration (22 widgets) |
 
 ## Metrics Collected
@@ -184,7 +184,7 @@ The dashboard is automatically configured in `dashboard.json`. To import:
 
 | Workflow | Schedule | Purpose |
 |----------|----------|---------|
-| `forward-web-traffic.yml` | Every 8 hours (`0 */8 * * *`) | Process logs & forward metrics |
+| `forward-web-traffic.yml` | Every 4 hours (`0 */4 * * *`) | Process logs & forward metrics |
 | `forward-cur.yml` | Every 8 hours (`0 */8 * * *`) | AWS cost data |
 | `forward-supabase.yml` | Every hour (`0 * * * *`) | Supabase metrics |
 | `forward-logs.yml` | Every hour (`0 * * * *`) | CloudWatch logs |
@@ -343,7 +343,7 @@ LIMIT 10
 - No credit card required
 - No expiry
 
-Typical usage: ~5-10 MB per workflow run (every 8 hours) = ~15-30 MB/day = ~450-900 MB/month
+Typical usage: ~5-10 MB per workflow run (every 4 hours) = ~30-60 MB/day = ~900-1,800 MB/month
 
 ## Security
 
@@ -371,7 +371,7 @@ Edit `.github/workflows/forward-web-traffic.yml`:
 ```yaml
 on:
   schedule:
-    - cron: "0 */8 * * *"  # Change this
+    - cron: "0 */4 * * *"  # Change this
 ```
 
 ### Manual trigger:

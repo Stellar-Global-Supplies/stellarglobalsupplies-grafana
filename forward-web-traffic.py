@@ -33,6 +33,42 @@ NR_METRICS_URL = os.environ.get("NEW_RELIC_METRICS_URL") or f"https://{_NR_HOST}
 logger.info("New Relic region=%s  metrics endpoint=%s", _NR_REGION, NR_METRICS_URL)
 
 REPORT_FILE = os.environ.get("WEB_TRAFFIC_REPORT", "web-traffic-report.json")
+WEB_TRAFFIC_STATE_FILE = os.environ.get("WEB_TRAFFIC_STATE_FILE", "web-traffic-state.json")
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Persistent deduplication state
+# ─────────────────────────────────────────────────────────────────────────────
+import hashlib
+from pathlib import Path
+
+def _load_state(path: str) -> dict:
+    p = Path(path)
+    if not p.exists():
+        return {}
+    try:
+        with p.open("r", encoding="utf-8") as fh:
+            value = json.load(fh)
+        return value if isinstance(value, dict) else {}
+    except (OSError, json.JSONDecodeError) as exc:
+        logger.warning("Could not read state file %s: %s; starting fresh", path, exc)
+        return {}
+
+def _save_state_atomic(path: str, state: dict) -> None:
+    p = Path(path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    tmp = p.with_suffix(p.suffix + ".tmp")
+    with tmp.open("w", encoding="utf-8") as fh:
+        json.dump(state, fh, indent=2, sort_keys=True)
+        fh.write("\n")
+    os.replace(tmp, p)
+
+def _stable_hash(value) -> str:
+    payload = json.dumps(
+        value, sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+        default=str
+    ).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
+
 BATCH_SIZE  = int(os.environ.get("BATCH_SIZE") or "500")
 
 
@@ -405,41 +441,60 @@ def report_to_metrics(report: dict[str, Any]) -> list[dict]:
 
 # ── Main entry point ─────────────────────────────────────────────────────────
 def main():
-    """Main entry point - load report and forward to New Relic."""
+    """Load report, deduplicate its semantic content, then forward to New Relic."""
     logger.info("Starting web traffic forwarder...")
 
-    # Load report
     report = load_report()
     if not report:
         logger.error("No report to forward")
         return 1
 
-    # Convert to metrics
+    # generated_at changes on every processor run even when the underlying
+    # report is identical. Exclude it from the fingerprint.
+    fingerprint_report = dict(report)
+    fingerprint_report.pop("generated_at", None)
+    report_hash = _stable_hash(fingerprint_report)
+
+    state = _load_state(WEB_TRAFFIC_STATE_FILE)
+    if state.get("sha256") == report_hash:
+        logger.info("Web traffic report unchanged (sha256=%s) — skipping New Relic ingest",
+                    report_hash[:12])
+        print(json.dumps({"statusCode": 0, "sent": 0, "failed": 0, "skipped": True}))
+        return 0
+
     metrics = report_to_metrics(report)
     if not metrics:
         logger.warning("No metrics generated from report")
         return 0
 
-    # Push to New Relic in batches
     total_sent = 0
-    total_failed = 0
-    
     for i in range(0, len(metrics), BATCH_SIZE):
         batch = metrics[i:i + BATCH_SIZE]
         payload = build_nr_metric_payload(batch)
         try:
             push_to_nr_metrics(payload)
             total_sent += len(batch)
-            logger.debug(f"Pushed batch {i}-{i + len(batch)}")
         except Exception as exc:
-            total_failed += len(batch)
-            logger.error(f"Failed to push batch {i}: {exc}")
+            # Do not advance state on a partial/failed run. The next execution
+            # retries the report rather than silently losing telemetry.
+            logger.error("Failed to push batch %d: %s", i, exc)
+            print(json.dumps({
+                "statusCode": 1, "sent": total_sent,
+                "failed": len(metrics) - total_sent, "skipped": False,
+            }))
+            return 1
 
-    logger.info(f"Forwarding complete: sent={total_sent} failed={total_failed} metrics")
+    now = datetime.now(timezone.utc).isoformat()
+    _save_state_atomic(WEB_TRAFFIC_STATE_FILE, {
+        "sha256": report_hash,
+        "last_successful_push": now,
+        "metric_count": total_sent,
+        "period": report.get("period"),
+    })
+
+    logger.info("Forwarding complete: sent=%d; state=%s", total_sent, WEB_TRAFFIC_STATE_FILE)
     print(json.dumps({
-        "statusCode": 0,
-        "sent": total_sent,
-        "failed": total_failed,
+        "statusCode": 0, "sent": total_sent, "failed": 0, "skipped": False,
     }))
     return 0
 

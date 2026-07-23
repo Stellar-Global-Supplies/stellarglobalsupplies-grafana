@@ -76,6 +76,43 @@ BATCH_SIZE           = int(os.environ.get("BATCH_SIZE") or "500")
 # dashboard actually wants, and keeps them inside the accepted window forever.
 RUN_TS_MS = int(time.time() * 1000)
 
+CUR_STATE_FILE = os.environ.get("CUR_STATE_FILE", "cur-state.json")
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Persistent deduplication state
+# ─────────────────────────────────────────────────────────────────────────────
+import hashlib
+from pathlib import Path
+
+def _load_state(path: str) -> dict:
+    p = Path(path)
+    if not p.exists():
+        return {}
+    try:
+        with p.open("r", encoding="utf-8") as fh:
+            value = json.load(fh)
+        return value if isinstance(value, dict) else {}
+    except (OSError, json.JSONDecodeError) as exc:
+        logger.warning("Could not read state file %s: %s; starting fresh", path, exc)
+        return {}
+
+def _save_state_atomic(path: str, state: dict) -> None:
+    p = Path(path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    tmp = p.with_suffix(p.suffix + ".tmp")
+    with tmp.open("w", encoding="utf-8") as fh:
+        json.dump(state, fh, indent=2, sort_keys=True)
+        fh.write("\n")
+    os.replace(tmp, p)
+
+def _stable_hash(value) -> str:
+    payload = json.dumps(
+        value, sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+        default=str
+    ).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
+
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # File loader
@@ -362,59 +399,66 @@ def push_metrics(metrics: list[dict]) -> None:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def main():
-    all_metrics: list[dict] = []
+    state = _load_state(CUR_STATE_FILE)
+    sources_state = state.setdefault("sources", {})
     stats = {
-        "costs_metrics":       0,
-        "daily_metrics":       0,
-        "summary_metrics":     0,
-        "tags_metrics":        0,
+        "costs_metrics": 0,
+        "daily_metrics": 0,
+        "summary_metrics": 0,
+        "tags_metrics": 0,
         "usage_group_metrics": 0,
-        "total_metrics":       0,
+        "total_metrics": 0,
+        "skipped_unchanged": 0,
+        "updated_sources": 0,
     }
 
-    # costs.json
-    costs_data = load_json(CUR_COSTS_FILE)
-    if isinstance(costs_data, list) and costs_data:
-        m = collect_costs(costs_data)
-        all_metrics.extend(m)
-        stats["costs_metrics"] = len(m)
+    sources = [
+        ("costs", CUR_COSTS_FILE, list, collect_costs, "costs_metrics"),
+        ("daily-costs", CUR_DAILY_FILE, dict, collect_daily, "daily_metrics"),
+        ("summary", CUR_SUMMARY_FILE, list, collect_summary, "summary_metrics"),
+        ("costs-by-tag", CUR_TAGS_FILE, dict, collect_tags, "tags_metrics"),
+        ("costs-by-usage-group", CUR_USAGE_GROUP_FILE, list, collect_usage_group, "usage_group_metrics"),
+    ]
 
-    # daily-costs.json
-    daily_data = load_json(CUR_DAILY_FILE)
-    if isinstance(daily_data, dict):
-        m = collect_daily(daily_data)
-        all_metrics.extend(m)
-        stats["daily_metrics"] = len(m)
+    for source_name, path, expected_type, collector, stat_key in sources:
+        data = load_json(path)
+        if not isinstance(data, expected_type) or not data:
+            continue
 
-    # summary.json
-    summary_data = load_json(CUR_SUMMARY_FILE)
-    if isinstance(summary_data, list) and summary_data:
-        m = collect_summary(summary_data)
-        all_metrics.extend(m)
-        stats["summary_metrics"] = len(m)
+        content_hash = _stable_hash(data)
+        previous_hash = sources_state.get(source_name, {}).get("sha256")
 
-    # costs-by-tag.json
-    tags_data = load_json(CUR_TAGS_FILE)
-    if isinstance(tags_data, dict):
-        m = collect_tags(tags_data)
-        all_metrics.extend(m)
-        stats["tags_metrics"] = len(m)
+        if content_hash == previous_hash:
+            logger.info("%s unchanged (sha256=%s) — skipping New Relic ingest",
+                        source_name, content_hash[:12])
+            stats["skipped_unchanged"] += 1
+            continue
 
-    # costs-by-usage-group.json (resource-naming/grouping)
-    usage_group_data = load_json(CUR_USAGE_GROUP_FILE)
-    if isinstance(usage_group_data, list) and usage_group_data:
-        m = collect_usage_group(usage_group_data)
-        all_metrics.extend(m)
-        stats["usage_group_metrics"] = len(m)
+        metrics = collector(data)
+        if not metrics:
+            logger.info("%s produced no metrics", source_name)
+            continue
 
-    stats["total_metrics"] = len(all_metrics)
-    logger.info("Collected metrics: %s", stats)
+        # IMPORTANT: state is advanced only after every batch was accepted.
+        push_metrics(metrics)
 
-    push_metrics(all_metrics)
+        now = datetime.now(timezone.utc).isoformat()
+        sources_state[source_name] = {
+            "sha256": content_hash,
+            "last_successful_push": now,
+            "metric_count": len(metrics),
+            "source_file": path,
+        }
+        state["updated_at"] = now
+        _save_state_atomic(CUR_STATE_FILE, state)
 
-    result = {"statusCode": 0, "body": stats}
+        stats[stat_key] = len(metrics)
+        stats["total_metrics"] += len(metrics)
+        stats["updated_sources"] += 1
+
+    logger.info("CUR state file: %s", CUR_STATE_FILE)
     logger.info("Run complete: %s", stats)
-    print(json.dumps(result))
+    print(json.dumps({"statusCode": 0, "body": stats}))
 
 
 if __name__ == "__main__":
