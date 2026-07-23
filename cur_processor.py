@@ -357,8 +357,13 @@ def process_cur_manifest(manifest: dict[str, Any]) -> None:
         logger.info(f"Aggregated to {len(aggregated_array)} records")
         
         # Extract billing period
-        start_date = manifest.get('billingPeriod', {}).get('start', '').replace('T', '')[:8]
-        end_date = manifest.get('billingPeriod', {}).get('end', '').replace('T', '')[:8]
+        # Handles both ISO format ("2026-07-01T00:00:00Z") and compact format
+        # ("20260701T00:00:00.000Z") by stripping all non-digits and taking first 8.
+        start_date = re.sub(r'[^0-9]', '', manifest.get('billingPeriod', {}).get('start', ''))[:8]
+        end_date   = re.sub(r'[^0-9]', '', manifest.get('billingPeriod', {}).get('end',   ''))[:8]
+        if not start_date or len(start_date) < 6:
+            logger.error("Could not parse billingPeriod.start from manifest; skipping")
+            continue
         billing_period_path = f"{start_date}-{end_date}"
         
         # Generate daily-costs.json
@@ -399,10 +404,14 @@ def process_cur_manifest(manifest: dict[str, Any]) -> None:
                 }
             service_monthly[service_key]['cost'] += record['cost']
         
+        services_rounded = [
+            {'service': s['service'], 'serviceName': s['serviceName'], 'cost': round(s['cost'], 6)}
+            for s in service_monthly.values()
+        ]
         summary = {
             'month': f"{start_date[:4]}-{start_date[4:6]}",
             'totalCost': round(sum(s['cost'] for s in service_monthly.values()), 6),
-            'services': sorted(service_monthly.values(), key=lambda x: x['cost'], reverse=True),
+            'services': sorted(services_rounded, key=lambda x: x['cost'], reverse=True),
         }
         
         with open('summary.json', 'w') as f:

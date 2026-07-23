@@ -24,6 +24,7 @@ Environment variables:
 
 import json
 import os
+import re
 import sys
 import time
 import logging
@@ -137,12 +138,8 @@ def collect_daily(data: dict) -> list[dict]:
       aws.cur.daily.service_cost        (per-service for the day)
     """
     metrics = []
-    billing_period = (
-        data.get("billingPeriod", {}).get("start", "")[:7].replace("", "-")
-        or "unknown"
-    )
-    # normalise "20260701" → "2026-07"
-    bp_raw = data.get("billingPeriod", {}).get("start", "")
+    # normalise both "20260701" and "2026-07-01" → "2026-07"
+    bp_raw = re.sub(r'[^0-9]', '', data.get("billingPeriod", {}).get("start", ""))[:8]
     billing_period = f"{bp_raw[:4]}-{bp_raw[4:6]}" if len(bp_raw) >= 6 else "unknown"
 
     for day in data.get("dailyCosts", []):
