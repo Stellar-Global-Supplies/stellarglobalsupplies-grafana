@@ -1,0 +1,63 @@
+name: CUR Processing and Forwarding to New Relic
+
+on:
+  schedule:
+    - cron: "0 */4 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  id-token: write   # needed for OIDC
+  contents: write   # needed to commit metrics-state.json
+
+jobs:
+  process-and-forward:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: us-east-1
+          role-session-name: cur-processor-forwarder
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --quiet --upgrade pip
+          pip install --quiet -r requirements.txt
+
+      - name: Process CUR data from S3
+        env:
+          AWS_REGION: us-east-1
+          RAW_CUR_BUCKET: ${{ secrets.RAW_CUR_BUCKET || 'stellarglobal-costing-bucket' }}
+        run: python cur_processor.py
+
+      - name: Forward CUR metrics to New Relic
+        env:
+          NEW_RELIC_LICENSE_KEY: ${{ secrets.NEW_RELIC_LICENSE_KEY }}
+          NEW_RELIC_REGION: eu
+          CUR_COSTS_FILE: costs.json
+          CUR_DAILY_FILE: daily-costs.json
+          CUR_SUMMARY_FILE: summary.json
+          CUR_TAGS_FILE: costs-by-tag.json
+        run: python forward-cur.py
+
+      - name: Clean up generated files
+        if: always()
+        run: |
+          rm -f costs.json daily-costs.json summary.json costs-by-tag.json
+          echo "Cleaned up all generated JSON files"
