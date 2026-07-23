@@ -1,9 +1,15 @@
 """
 CloudWatch Metrics → New Relic Metric API forwarder (GitHub Actions version)
-- Discovers S3 buckets, DynamoDB tables, Lambda functions, API Gateway APIs
-- Fetches key CloudWatch metrics
-- Pushes to New Relic Metric API (HTTP POST, JSON)
-- Tracks last-fetch time in metrics-state.json
+
+Fixes applied vs original:
+  1. Lambda / API Gateway / StepFunctions / DynamoDB → 24-hour lookback window
+     (was METRICS_PERIOD=300 s which returned 0 datapoints for low-traffic resources).
+  2. S3 BucketSizeBytes & NumberOfObjects → lifetime window (90 days back) with
+     86 400-second period because AWS only publishes these once per day.
+  3. DynamoDB ItemCount (total items) → fetched via describe_table(), not CW,
+     because AWS stopped publishing ItemCount to CloudWatch for on-demand tables
+     and it shows 0 in CW for many table configurations.
+  4. StepFunctions (AWS Step Functions) added as a new service with 24h window.
 """
 
 import json
@@ -25,19 +31,27 @@ handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"
 logger.addHandler(handler)
 
 # ── Env vars ─────────────────────────────────────────────────────────────────
-NR_LICENSE_KEY  = os.environ["NEW_RELIC_LICENSE_KEY"]   # New Relic ingest license key
-# NEW_RELIC_REGION: "us" (default) or "eu"
-# Builds the correct regional endpoint automatically so the same secret works
-# for both US and EU accounts without needing a separate URL variable.
-_NR_REGION      = os.environ.get("NEW_RELIC_REGION", "eu").strip().lower()
-_NR_METRIC_HOST = "metric-api.eu.newrelic.com" if _NR_REGION == "eu" else "metric-api.newrelic.com"
-NR_METRICS_URL  = os.environ.get("NEW_RELIC_METRICS_URL") or f"https://{_NR_METRIC_HOST}/metric/v1"
+NR_LICENSE_KEY   = os.environ["NEW_RELIC_LICENSE_KEY"]
+_NR_REGION       = os.environ.get("NEW_RELIC_REGION", "eu").strip().lower()
+_NR_METRIC_HOST  = "metric-api.eu.newrelic.com" if _NR_REGION == "eu" else "metric-api.newrelic.com"
+NR_METRICS_URL   = os.environ.get("NEW_RELIC_METRICS_URL") or f"https://{_NR_METRIC_HOST}/metric/v1"
 logger.info("New Relic region=%s  metrics endpoint=%s", _NR_REGION, NR_METRICS_URL)
-AWS_REGION      = os.environ.get("AWS_REGION", "us-east-1")
-STATE_FILE      = os.environ.get("METRICS_STATE_FILE") or "metrics-state.json"
+AWS_REGION       = os.environ.get("AWS_REGION", "us-east-1")
+STATE_FILE       = os.environ.get("METRICS_STATE_FILE") or "metrics-state.json"
 LOOKBACK_MINUTES = int(os.environ.get("LOOKBACK_MINUTES") or "10")
-BATCH_SIZE      = int(os.environ.get("BATCH_SIZE") or "500")
-METRICS_PERIOD  = int(os.environ.get("METRICS_PERIOD") or "300")
+BATCH_SIZE       = int(os.environ.get("BATCH_SIZE") or "500")
+METRICS_PERIOD   = int(os.environ.get("METRICS_PERIOD") or "300")
+
+# ── Window constants ──────────────────────────────────────────────────────────
+# Lambda / APIGW / StepFunctions / DynamoDB CW metrics — 24-hour lookback
+# so each GitHub Actions run captures all datapoints since the last run.
+WINDOW_24H_SECONDS = 24 * 3600          # 86 400 s
+
+# S3 storage metrics are published by AWS once per day; we use a 90-day
+# lookback with a 1-day period to guarantee we always get the latest value
+# regardless of when exactly AWS publishes it.
+S3_STORAGE_LOOKBACK_DAYS = 90
+S3_STORAGE_PERIOD        = 86_400       # 1 day in seconds
 
 # ── AWS clients ──────────────────────────────────────────────────────────────
 cloudwatch    = boto3.client("cloudwatch",  region_name=AWS_REGION)
@@ -45,10 +59,11 @@ s3_client     = boto3.client("s3",          region_name=AWS_REGION)
 dynamodb      = boto3.client("dynamodb",    region_name=AWS_REGION)
 lambda_client = boto3.client("lambda",      region_name=AWS_REGION)
 apigw_client  = boto3.client("apigateway",  region_name=AWS_REGION)
+sfn_client    = boto3.client("stepfunctions", region_name=AWS_REGION)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# State file helpers  (unchanged from original)
+# State file helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
 def load_state() -> dict:
@@ -73,7 +88,7 @@ def save_state(state: dict) -> None:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Resource discovery  (unchanged from original)
+# Resource discovery
 # ─────────────────────────────────────────────────────────────────────────────
 
 def list_s3_buckets() -> list[str]:
@@ -91,8 +106,9 @@ def list_dynamodb_tables() -> list[str]:
         paginator = dynamodb.get_paginator("list_tables")
         for page in paginator.paginate():
             tables.extend(page.get("TableNames", []))
-    except ClientError as e:
-        logger.error("Failed to list DynamoDB tables: %s", e)
+        logger.info("Discovered %d DynamoDB tables", len(tables))
+    except Exception as e:
+        logger.error("Failed to list DynamoDB tables: %s", e, exc_info=True)
     return tables
 
 
@@ -103,47 +119,60 @@ def list_lambda_functions() -> list[str]:
         for page in paginator.paginate():
             fns.extend(f["FunctionName"] for f in page.get("Functions", []))
         logger.info("Discovered %d Lambda functions", len(fns))
-    except ClientError as e:
-        logger.error("Failed to list Lambda functions: %s", e)
+    except Exception as e:
+        logger.error("Failed to list Lambda functions: %s", e, exc_info=True)
     return fns
 
 
 def list_apigw_apis() -> list[str]:
     apis = []
     try:
+        # REST APIs (v1)
         paginator = apigw_client.get_paginator("get_rest_apis")
         for page in paginator.paginate():
             apis.extend(a["id"] for a in page.get("items", []))
         logger.info("Discovered %d REST APIs", len(apis))
-    except ClientError as e:
-        logger.error("Failed to list API Gateway APIs: %s", e)
+    except Exception as e:
+        logger.error("Failed to list API Gateway APIs: %s", e, exc_info=True)
     return apis
 
 
+def list_step_functions() -> list[dict]:
+    """Return list of {name, arn} dicts for all state machines."""
+    machines = []
+    try:
+        paginator = sfn_client.get_paginator("list_state_machines")
+        for page in paginator.paginate():
+            for sm in page.get("stateMachines", []):
+                machines.append({"name": sm["name"], "arn": sm["stateMachineArn"]})
+        logger.info("Discovered %d Step Function state machines", len(machines))
+    except Exception as e:
+        logger.error("Failed to list Step Functions: %s", e, exc_info=True)
+    return machines
+
+
 # ─────────────────────────────────────────────────────────────────────────────
-# CloudWatch metric definitions  (unchanged from original)
+# CloudWatch metric definitions
 # ─────────────────────────────────────────────────────────────────────────────
 
+# S3 storage: published daily — fetched with S3_STORAGE_PERIOD (86400s)
 S3_STORAGE_METRICS = [
     {"name": "BucketSizeBytes",  "stat": "Average", "unit": "Bytes"},
     {"name": "NumberOfObjects",  "stat": "Average", "unit": "Count"},
 ]
 
+# S3 request metrics: real-time, use standard METRICS_PERIOD
 S3_REQUEST_METRICS = [
-    {"name": "GetObject",     "stat": "Sum", "unit": "Count"},
-    {"name": "PutObject",     "stat": "Sum", "unit": "Count"},
-    {"name": "HeadObject",    "stat": "Sum", "unit": "Count"},
-    {"name": "ListBucket",    "stat": "Sum", "unit": "Count"},
-    {"name": "GetObjectAcl",  "stat": "Sum", "unit": "Count"},
-    {"name": "PutObjectAcl",  "stat": "Sum", "unit": "Count"},
-    {"name": "DeleteObject",  "stat": "Sum", "unit": "Count"},
-    {"name": "PostObject",    "stat": "Sum", "unit": "Count"},
-    {"name": "CopyObject",    "stat": "Sum", "unit": "Count"},
-    {"name": "HeadBucket",    "stat": "Sum", "unit": "Count"},
-    {"name": "4xxErrors",     "stat": "Sum", "unit": "Count"},
-    {"name": "5xxErrors",     "stat": "Sum", "unit": "Count"},
+    {"name": "GetRequests",      "stat": "Sum", "unit": "Count"},
+    {"name": "PutRequests",      "stat": "Sum", "unit": "Count"},
+    {"name": "HeadRequests",     "stat": "Sum", "unit": "Count"},
+    {"name": "ListRequests",     "stat": "Sum", "unit": "Count"},
+    {"name": "DeleteRequests",   "stat": "Sum", "unit": "Count"},
+    {"name": "4xxErrors",        "stat": "Sum", "unit": "Count"},
+    {"name": "5xxErrors",        "stat": "Sum", "unit": "Count"},
 ]
 
+# DynamoDB: use 24h window
 DYNAMODB_METRICS = [
     {"name": "ConsumedReadCapacityUnits",     "stat": "Sum",     "unit": "Count"},
     {"name": "ConsumedWriteCapacityUnits",    "stat": "Sum",     "unit": "Count"},
@@ -158,6 +187,7 @@ DYNAMODB_METRICS = [
     {"name": "SuccessfulRequestLatency",      "stat": "Average", "unit": "Milliseconds"},
 ]
 
+# Lambda: use 24h window
 LAMBDA_METRICS = [
     {"name": "Invocations",          "stat": "Sum",     "unit": "Count"},
     {"name": "Errors",               "stat": "Sum",     "unit": "Count"},
@@ -166,6 +196,7 @@ LAMBDA_METRICS = [
     {"name": "ConcurrentExecutions", "stat": "Maximum", "unit": "Count"},
 ]
 
+# API Gateway: use 24h window
 APIGW_METRICS = [
     {"name": "Count",              "stat": "Sum",     "unit": "Count"},
     {"name": "4XXError",           "stat": "Sum",     "unit": "Count"},
@@ -174,9 +205,21 @@ APIGW_METRICS = [
     {"name": "IntegrationLatency", "stat": "Average", "unit": "Milliseconds"},
 ]
 
+# Step Functions: use 24h window
+# Namespace: AWS/States; dimension: StateMachineArn
+SFN_METRICS = [
+    {"name": "ExecutionsStarted",   "stat": "Sum",     "unit": "Count"},
+    {"name": "ExecutionsSucceeded", "stat": "Sum",     "unit": "Count"},
+    {"name": "ExecutionsFailed",    "stat": "Sum",     "unit": "Count"},
+    {"name": "ExecutionsAborted",   "stat": "Sum",     "unit": "Count"},
+    {"name": "ExecutionsTimedOut",  "stat": "Sum",     "unit": "Count"},
+    {"name": "ExecutionThrottled",  "stat": "Sum",     "unit": "Count"},
+    {"name": "ExecutionTime",       "stat": "Average", "unit": "Milliseconds"},
+]
+
 
 # ─────────────────────────────────────────────────────────────────────────────
-# CloudWatch fetch helper  (unchanged from original)
+# CloudWatch fetch helper
 # ─────────────────────────────────────────────────────────────────────────────
 
 def fetch_metric(
@@ -189,7 +232,6 @@ def fetch_metric(
     end_time: datetime,
     period: int = 300,
 ) -> list[dict]:
-    """Fetch metric datapoints from CloudWatch and return as list of value dicts."""
     try:
         resp = cloudwatch.get_metric_statistics(
             Namespace=namespace,
@@ -220,53 +262,18 @@ def build_metric_object(
     attributes: dict,
     interval_ms: int = 300_000,
 ) -> dict:
-    """
-    Build a New Relic Metric API datapoint.
-
-    New Relic supports three metric types:
-      - gauge   : a value at a point in time (e.g. BucketSizeBytes, Duration)
-      - count   : a delta count over an interval (e.g. Invocations, Errors)
-      - summary : min/max/sum/count rollup — not used here, we keep it simple
-
-    We map CloudWatch "Sum" stats → count, everything else → gauge.
-    The interval_ms must match METRICS_PERIOD so NR can compute rates correctly.
-
-    Payload shape (one item in the outer array's "metrics" list):
-    {
-      "name":       "aws.s3.BucketSizeBytes.Average",
-      "type":       "gauge",
-      "value":      12345.0,
-      "timestamp":  1234567890000,   # epoch ms
-      "interval.ms": 300000,         # required for count type
-      "attributes": { "bucket": "my-bucket", ... }
-    }
-    """
-    # "Sum" stats represent accumulated counts over the period → NR count type
     nr_type = "count" if metric_name.endswith(".Sum") else "gauge"
-
     return {
-        "name":          metric_name,
-        "type":          nr_type,
-        "value":         float(value),
-        "timestamp":     timestamp_ms,
-        "interval.ms":   interval_ms,
-        "attributes":    {k: str(v) for k, v in attributes.items()},
+        "name":        metric_name,
+        "type":        nr_type,
+        "value":       float(value),
+        "timestamp":   timestamp_ms,
+        "interval.ms": interval_ms,
+        "attributes":  {k: str(v) for k, v in attributes.items()},
     }
 
 
 def build_nr_metric_payload(metrics: list[dict]) -> list[dict]:
-    """
-    New Relic Metric API envelope:
-    [
-      {
-        "common": {
-          "attributes": { "forwarder": "github-actions", "aws.region": "us-east-1" },
-          "interval.ms": 300000
-        },
-        "metrics": [ <metric objects> ]
-      }
-    ]
-    """
     return [
         {
             "common": {
@@ -282,12 +289,10 @@ def build_nr_metric_payload(metrics: list[dict]) -> list[dict]:
 
 
 def push_to_nr_metrics(payload: list[dict]) -> None:
-    """Push metrics to New Relic Metric API."""
     if not payload or not payload[0].get("metrics"):
         return
 
     body = json.dumps(payload).encode("utf-8")
-
     req = urllib.request.Request(
         NR_METRICS_URL,
         data=body,
@@ -309,98 +314,217 @@ def push_to_nr_metrics(payload: list[dict]) -> None:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Per-service metric collectors  (logic unchanged, NR metric names used)
+# Per-service metric collectors
 # ─────────────────────────────────────────────────────────────────────────────
 
-def collect_s3_metrics(bucket: str, start_time: datetime, end_time: datetime, state: dict) -> list[dict]:
+def collect_s3_metrics(bucket: str, now: datetime, state: dict) -> list[dict]:
+    """
+    S3 storage metrics (BucketSizeBytes, NumberOfObjects):
+      - AWS publishes these ONCE PER DAY to CloudWatch.
+      - We use a 90-day lookback + 86400-second period so we always capture
+        the latest daily value regardless of when the action runs.
+
+    S3 request metrics:
+      - Real-time; use standard 24h window.
+    """
     metrics = []
     now_ms = int(time.time() * 1000)
     state_key = f"s3:{bucket}"
+    attrs = {"bucket": bucket, "region": AWS_REGION, "source": "s3", "resource": bucket}
 
+    # ── Storage metrics: lifetime / 90-day window, daily period ──────────────
+    storage_start = now - timedelta(days=S3_STORAGE_LOOKBACK_DAYS)
     for m in S3_STORAGE_METRICS:
         dims = [{"Name": "BucketName", "Value": bucket}]
         if m["name"] == "BucketSizeBytes":
             dims.append({"Name": "StorageType", "Value": "StandardStorage"})
-        dps = fetch_metric("AWS/S3", m["name"], dims, m["stat"], m["unit"], start_time, end_time)
-        for dp in dps:
-            ts = int(dp["Timestamp"].timestamp() * 1000)
-            metrics.append(build_metric_object(
-                f"aws.s3.{m['name']}.{m['stat']}",
-                dp[m["stat"]], ts,
-                {"bucket": bucket, "region": AWS_REGION, "source": "s3", "resource": bucket},
-            ))
+        else:
+            dims.append({"Name": "StorageType", "Value": "AllStorageTypes"})
 
+        dps = fetch_metric(
+            "AWS/S3", m["name"], dims, m["stat"], m["unit"],
+            storage_start, now,
+            period=S3_STORAGE_PERIOD,
+        )
+        if dps:
+            # Take the most recent datapoint so Grafana always shows current value
+            latest = dps[-1]
+            ts = int(latest["Timestamp"].timestamp() * 1000)
+            metrics.append(build_metric_object(
+                f"aws.s3.{m['name']}.{m['stat']}",
+                latest[m["stat"]], ts, attrs,
+                interval_ms=S3_STORAGE_PERIOD * 1000,
+            ))
+            logger.info("S3 %s %s: latest value=%.0f at %s",
+                        bucket, m["name"], latest[m["stat"]], latest["Timestamp"])
+        else:
+            logger.warning(
+                "S3 %s %s: no CW datapoints in 90-day window — "
+                "enable S3 Storage Lens or request metrics if needed.",
+                bucket, m["name"],
+            )
+
+    # ── Request metrics: 24h window, standard period ──────────────────────────
+    req_start = now - timedelta(seconds=WINDOW_24H_SECONDS)
     for m in S3_REQUEST_METRICS:
-        dims = [{"Name": "BucketName", "Value": bucket}]
-        dps = fetch_metric("AWS/S3", m["name"], dims, m["stat"], m["unit"], start_time, end_time)
+        dims = [
+            {"Name": "BucketName", "Value": bucket},
+            {"Name": "FilterId",   "Value": "EntireBucket"},
+        ]
+        dps = fetch_metric(
+            "AWS/S3", m["name"], dims, m["stat"], m["unit"],
+            req_start, now,
+            period=METRICS_PERIOD,
+        )
         for dp in dps:
             ts = int(dp["Timestamp"].timestamp() * 1000)
             metrics.append(build_metric_object(
                 f"aws.s3.{m['name']}.{m['stat']}",
-                dp[m["stat"]], ts,
-                {"bucket": bucket, "region": AWS_REGION, "source": "s3", "resource": bucket},
+                dp[m["stat"]], ts, attrs,
             ))
 
     state[state_key] = {"lastFetchMs": now_ms, "updatedAt": datetime.now(timezone.utc).isoformat()}
     return metrics
 
 
-def collect_dynamodb_metrics(table: str, start_time: datetime, end_time: datetime, state: dict) -> list[dict]:
+def collect_dynamodb_metrics(table: str, now: datetime, state: dict) -> list[dict]:
+    """
+    DynamoDB metrics — 24-hour lookback so even low-traffic tables surface data.
+
+    ItemCount (total objects) is fetched directly from describe_table() because:
+      - AWS stopped publishing ItemCount to CloudWatch for on-demand tables.
+      - Even for provisioned tables, CW ItemCount can lag by ~6 hours.
+      - describe_table() returns the value as of the last table update.
+    """
     metrics = []
     now_ms = int(time.time() * 1000)
     state_key = f"dynamodb:{table}"
+    attrs = {"table": table, "region": AWS_REGION, "source": "dynamodb", "resource": table}
 
+    # ── ItemCount via describe_table (fixes "0 metrics" issue) ───────────────
+    try:
+        resp = dynamodb.describe_table(TableName=table)
+        item_count = resp["Table"].get("ItemCount", 0)
+        table_size_bytes = resp["Table"].get("TableSizeBytes", 0)
+        metrics.append(build_metric_object(
+            "aws.dynamodb.ItemCount.describe",
+            float(item_count), now_ms, attrs,
+        ))
+        metrics.append(build_metric_object(
+            "aws.dynamodb.TableSizeBytes.describe",
+            float(table_size_bytes), now_ms, attrs,
+        ))
+        logger.info("DynamoDB %s: ItemCount=%d SizeBytes=%d (via describe_table)",
+                    table, item_count, table_size_bytes)
+    except ClientError as e:
+        logger.warning("DynamoDB %s: describe_table failed – %s", table, e)
+
+    # ── Standard CW metrics: 24h window ──────────────────────────────────────
+    start_time = now - timedelta(seconds=WINDOW_24H_SECONDS)
     for m in DYNAMODB_METRICS:
         dims = [{"Name": "TableName", "Value": table}]
-        dps = fetch_metric("AWS/DynamoDB", m["name"], dims, m["stat"], m["unit"], start_time, end_time)
+        dps = fetch_metric(
+            "AWS/DynamoDB", m["name"], dims, m["stat"], m["unit"],
+            start_time, now,
+            period=METRICS_PERIOD,
+        )
         for dp in dps:
             ts = int(dp["Timestamp"].timestamp() * 1000)
             metrics.append(build_metric_object(
                 f"aws.dynamodb.{m['name']}.{m['stat']}",
-                dp[m["stat"]], ts,
-                {"table": table, "region": AWS_REGION, "source": "dynamodb", "resource": table},
+                dp[m["stat"]], ts, attrs,
             ))
 
     state[state_key] = {"lastFetchMs": now_ms, "updatedAt": datetime.now(timezone.utc).isoformat()}
     return metrics
 
 
-def collect_lambda_metrics(fn: str, start_time: datetime, end_time: datetime, state: dict) -> list[dict]:
+def collect_lambda_metrics(fn: str, now: datetime, state: dict) -> list[dict]:
+    """Lambda metrics — 24-hour lookback."""
     metrics = []
     now_ms = int(time.time() * 1000)
     state_key = f"lambda:{fn}"
+    attrs = {"function_name": fn, "region": AWS_REGION, "source": "lambda", "resource": fn}
 
+    start_time = now - timedelta(seconds=WINDOW_24H_SECONDS)
     for m in LAMBDA_METRICS:
         dims = [{"Name": "FunctionName", "Value": fn}]
-        dps = fetch_metric("AWS/Lambda", m["name"], dims, m["stat"], m["unit"], start_time, end_time)
+        dps = fetch_metric(
+            "AWS/Lambda", m["name"], dims, m["stat"], m["unit"],
+            start_time, now,
+            period=METRICS_PERIOD,
+        )
         for dp in dps:
             ts = int(dp["Timestamp"].timestamp() * 1000)
             val = dp.get(m["stat"], dp.get("Average", dp.get("Sum", dp.get("Maximum", 0))))
             metrics.append(build_metric_object(
                 f"aws.lambda.{m['name']}.{m['stat']}",
-                val, ts,
-                {"function_name": fn, "region": AWS_REGION, "source": "lambda", "resource": fn},
+                val, ts, attrs,
             ))
 
     state[state_key] = {"lastFetchMs": now_ms, "updatedAt": datetime.now(timezone.utc).isoformat()}
     return metrics
 
 
-def collect_apigw_metrics(api_id: str, start_time: datetime, end_time: datetime, state: dict) -> list[dict]:
+def collect_apigw_metrics(api_id: str, now: datetime, state: dict) -> list[dict]:
+    """API Gateway metrics — 24-hour lookback."""
     metrics = []
     now_ms = int(time.time() * 1000)
     state_key = f"apigw:{api_id}"
+    attrs = {"api_id": api_id, "region": AWS_REGION, "source": "apigateway", "resource": api_id}
 
+    start_time = now - timedelta(seconds=WINDOW_24H_SECONDS)
     for m in APIGW_METRICS:
         dims = [{"Name": "ApiId", "Value": api_id}]
-        dps = fetch_metric("AWS/ApiGateway", m["name"], dims, m["stat"], m["unit"], start_time, end_time)
+        dps = fetch_metric(
+            "AWS/ApiGateway", m["name"], dims, m["stat"], m["unit"],
+            start_time, now,
+            period=METRICS_PERIOD,
+        )
         for dp in dps:
             ts = int(dp["Timestamp"].timestamp() * 1000)
             val = dp.get(m["stat"], dp.get("Average", dp.get("Sum", 0)))
             metrics.append(build_metric_object(
                 f"aws.apigateway.{m['name']}.{m['stat']}",
-                val, ts,
-                {"api_id": api_id, "region": AWS_REGION, "source": "apigateway", "resource": api_id},
+                val, ts, attrs,
+            ))
+
+    state[state_key] = {"lastFetchMs": now_ms, "updatedAt": datetime.now(timezone.utc).isoformat()}
+    return metrics
+
+
+def collect_sfn_metrics(sm: dict, now: datetime, state: dict) -> list[dict]:
+    """
+    Step Functions metrics — 24-hour lookback.
+    Namespace: AWS/States; dimension: StateMachineArn.
+    """
+    metrics = []
+    now_ms = int(time.time() * 1000)
+    name = sm["name"]
+    arn  = sm["arn"]
+    state_key = f"sfn:{name}"
+    attrs = {
+        "state_machine_name": name,
+        "state_machine_arn":  arn,
+        "region": AWS_REGION,
+        "source": "stepfunctions",
+        "resource": name,
+    }
+
+    start_time = now - timedelta(seconds=WINDOW_24H_SECONDS)
+    for m in SFN_METRICS:
+        dims = [{"Name": "StateMachineArn", "Value": arn}]
+        dps = fetch_metric(
+            "AWS/States", m["name"], dims, m["stat"], m["unit"],
+            start_time, now,
+            period=METRICS_PERIOD,
+        )
+        for dp in dps:
+            ts = int(dp["Timestamp"].timestamp() * 1000)
+            val = dp.get(m["stat"], dp.get("Average", dp.get("Sum", 0)))
+            metrics.append(build_metric_object(
+                f"aws.stepfunctions.{m['name']}.{m['stat']}",
+                val, ts, attrs,
             ))
 
     state[state_key] = {"lastFetchMs": now_ms, "updatedAt": datetime.now(timezone.utc).isoformat()}
@@ -408,76 +532,100 @@ def collect_apigw_metrics(api_id: str, start_time: datetime, end_time: datetime,
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Main entry point  (unchanged from original)
+# Main
 # ─────────────────────────────────────────────────────────────────────────────
 
 def main():
-    end_time     = datetime.now(timezone.utc)
-    start_time   = end_time - timedelta(seconds=METRICS_PERIOD)
+    now = datetime.now(timezone.utc)
+
+    # ── Startup diagnostics ───────────────────────────────────────────────────
+    try:
+        sts = boto3.client("sts", region_name=AWS_REGION)
+        identity = sts.get_caller_identity()
+        logger.info("AWS identity: account=%s arn=%s region=%s",
+                    identity["Account"], identity["Arn"], AWS_REGION)
+    except Exception as e:
+        logger.error("Failed to get AWS identity — credentials may be missing: %s", e, exc_info=True)
 
     state = load_state()
     state_modified = False
 
-    stats = {"s3_buckets": 0, "dynamodb_tables": 0, "lambda_functions": 0, "apigw_apis": 0, "total_metrics": 0}
+    stats = {
+        "s3_buckets": 0, "dynamodb_tables": 0, "lambda_functions": 0,
+        "apigw_apis": 0, "sfn_state_machines": 0, "total_metrics": 0,
+    }
     all_metrics = []
 
-    # ── S3 ────────────────────────────────────────────────────────────────
+    # ── S3 ────────────────────────────────────────────────────────────────────
     buckets = list_s3_buckets()
     logger.info("Discovered %d S3 buckets", len(buckets))
     for bucket in buckets:
         try:
-            metrics = collect_s3_metrics(bucket, start_time, end_time, state)
-            if metrics:
-                all_metrics.extend(metrics)
-                stats["total_metrics"] += len(metrics)
+            m = collect_s3_metrics(bucket, now, state)
+            if m:
+                all_metrics.extend(m)
+                stats["total_metrics"] += len(m)
                 stats["s3_buckets"] += 1
-                logger.info("S3 %s: %d datapoints", bucket, len(metrics))
+                logger.info("S3 %s: %d datapoints", bucket, len(m))
                 state_modified = True
         except Exception as exc:
             logger.error("S3 %s: failed – %s", bucket, exc, exc_info=True)
 
-    # ── DynamoDB ──────────────────────────────────────────────────────────
+    # ── DynamoDB ──────────────────────────────────────────────────────────────
     tables = list_dynamodb_tables()
     logger.info("Discovered %d DynamoDB tables", len(tables))
     for table in tables:
         try:
-            metrics = collect_dynamodb_metrics(table, start_time, end_time, state)
-            if metrics:
-                all_metrics.extend(metrics)
-                stats["total_metrics"] += len(metrics)
+            m = collect_dynamodb_metrics(table, now, state)
+            if m:
+                all_metrics.extend(m)
+                stats["total_metrics"] += len(m)
                 stats["dynamodb_tables"] += 1
-                logger.info("DynamoDB %s: %d datapoints", table, len(metrics))
+                logger.info("DynamoDB %s: %d datapoints", table, len(m))
                 state_modified = True
         except Exception as exc:
             logger.error("DynamoDB %s: failed – %s", table, exc, exc_info=True)
 
-    # ── Lambda ────────────────────────────────────────────────────────────
+    # ── Lambda ────────────────────────────────────────────────────────────────
     for fn in list_lambda_functions():
         try:
-            metrics = collect_lambda_metrics(fn, start_time, end_time, state)
-            if metrics:
-                all_metrics.extend(metrics)
-                stats["total_metrics"] += len(metrics)
+            m = collect_lambda_metrics(fn, now, state)
+            if m:
+                all_metrics.extend(m)
+                stats["total_metrics"] += len(m)
                 stats["lambda_functions"] += 1
-                logger.info("Lambda %s: %d datapoints", fn, len(metrics))
+                logger.info("Lambda %s: %d datapoints", fn, len(m))
                 state_modified = True
         except Exception as exc:
             logger.error("Lambda %s: failed – %s", fn, exc, exc_info=True)
 
-    # ── API Gateway ───────────────────────────────────────────────────────
+    # ── API Gateway ───────────────────────────────────────────────────────────
     for api_id in list_apigw_apis():
         try:
-            metrics = collect_apigw_metrics(api_id, start_time, end_time, state)
-            if metrics:
-                all_metrics.extend(metrics)
-                stats["total_metrics"] += len(metrics)
+            m = collect_apigw_metrics(api_id, now, state)
+            if m:
+                all_metrics.extend(m)
+                stats["total_metrics"] += len(m)
                 stats["apigw_apis"] += 1
-                logger.info("APIGW %s: %d datapoints", api_id, len(metrics))
+                logger.info("APIGW %s: %d datapoints", api_id, len(m))
                 state_modified = True
         except Exception as exc:
             logger.error("APIGW %s: failed – %s", api_id, exc, exc_info=True)
 
-    # ── Push to New Relic Metric API (in batches) ─────────────────────────
+    # ── Step Functions ────────────────────────────────────────────────────────
+    for sm in list_step_functions():
+        try:
+            m = collect_sfn_metrics(sm, now, state)
+            if m:
+                all_metrics.extend(m)
+                stats["total_metrics"] += len(m)
+                stats["sfn_state_machines"] += 1
+                logger.info("StepFunctions %s: %d datapoints", sm["name"], len(m))
+                state_modified = True
+        except Exception as exc:
+            logger.error("StepFunctions %s: failed – %s", sm["name"], exc, exc_info=True)
+
+    # ── Push to New Relic ─────────────────────────────────────────────────────
     if all_metrics:
         for i in range(0, len(all_metrics), BATCH_SIZE):
             batch = all_metrics[i : i + BATCH_SIZE]
@@ -486,6 +634,8 @@ def main():
                 push_to_nr_metrics(payload)
             except Exception as exc:
                 logger.error("Failed to push metrics batch: %s", exc)
+    else:
+        logger.warning("No metrics collected — check AWS permissions and resource existence.")
 
     if state_modified:
         save_state(state)
