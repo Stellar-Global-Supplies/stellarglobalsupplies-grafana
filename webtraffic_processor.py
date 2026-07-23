@@ -30,7 +30,7 @@ logger.addHandler(handler)
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 REGION     = os.environ.get('AWS_REGION', 'us-east-1')
-BUCKET     = os.environ.get('LOGS_BUCKET', 'stellarglobal-cf-logs')
+BUCKET     = 'stellarglobal-cf-logs'  # CloudFront logs bucket
 PERIOD_DAYS = 7  # Rolling 7-day window
 
 # ── AWS clients ───────────────────────────────────────────────────────────────
