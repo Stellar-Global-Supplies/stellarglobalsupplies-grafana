@@ -1,1 +1,35 @@
-{}
+{
+  "sources": {
+    "costs": {
+      "last_successful_push": "2026-07-23T17:23:41.887378+00:00",
+      "metric_count": 136,
+      "sha256": "ffc5479873a0e4ef40d918d136c9d3fca8b15818f323dc013cbb4eb3a77a2842",
+      "source_file": "costs.json"
+    },
+    "costs-by-tag": {
+      "last_successful_push": "2026-07-23T17:23:42.640375+00:00",
+      "metric_count": 9,
+      "sha256": "c629e91205dfcbd8dcd2cd211afb9ee27b24cc6b7c430d27424288b60c30a612",
+      "source_file": "costs-by-tag.json"
+    },
+    "costs-by-usage-group": {
+      "last_successful_push": "2026-07-23T17:23:42.793382+00:00",
+      "metric_count": 108,
+      "sha256": "ffef4c9f5bd68e9c294cd59ec18737e31887680b40cf4b368e95491d0d559c4e",
+      "source_file": "costs-by-usage-group.json"
+    },
+    "daily-costs": {
+      "last_successful_push": "2026-07-23T17:23:42.212297+00:00",
+      "metric_count": 43,
+      "sha256": "c9b4e4703f4ea2f18a8a54361cc90d722ceda15be6c45b65205d63be994ba8c8",
+      "source_file": "daily-costs.json"
+    },
+    "summary": {
+      "last_successful_push": "2026-07-23T17:23:42.513851+00:00",
+      "metric_count": 9,
+      "sha256": "d3d033e1ec3dff70bce92522aea4d13b6a14cb11a6e9b27a4ace2a11c6ad798a",
+      "source_file": "summary.json"
+    }
+  },
+  "updated_at": "2026-07-23T17:23:42.793382+00:00"
+}
