@@ -43,10 +43,10 @@ jobs:
           python -m pip install --quiet --upgrade pip
           pip install --quiet -r requirements.txt
 
-      - name: Run metrics forwarder (CloudWatch Metrics → Splunk SignalFx)
+      - name: Run metrics forwarder (CloudWatch Metrics → New Relic)
         env:
-          SPLUNK_INGEST_TOKEN: ${{ secrets.SPLUNK_INGEST_TOKEN }}
-          SPLUNK_REALM: ${{ secrets.SPLUNK_REALM }}
+          NEW_RELIC_LICENSE_KEY: ${{ secrets.NEW_RELIC_LICENSE_KEY }}
+          NEW_RELIC_REGION: ${{ vars.NEW_RELIC_REGION }}
           METRICS_STATE_FILE: metrics-state.json
           METRICS_PERIOD: "300"
           BATCH_SIZE: ${{ vars.BATCH_SIZE }}

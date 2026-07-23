@@ -43,10 +43,10 @@ jobs:
           python -m pip install --quiet --upgrade pip
           pip install --quiet -r requirements.txt
 
-      - name: Run log forwarder (CloudWatch Logs → Splunk HEC)
+      - name: Run log forwarder (CloudWatch Logs → New Relic)
         env:
-          SPLUNK_HEC_TOKEN: ${{ secrets.SPLUNK_HEC_TOKEN }}
-          SPLUNK_HEC_HOST: ${{ secrets.SPLUNK_HEC_HOST }}
+          NEW_RELIC_LICENSE_KEY: ${{ secrets.NEW_RELIC_LICENSE_KEY }}
+          NEW_RELIC_REGION: ${{ vars.NEW_RELIC_REGION }}
           STATE_FILE: state.json
           LOG_GROUP_PREFIX: ${{ vars.LOG_GROUP_PREFIX }}
           BATCH_SIZE: ${{ vars.BATCH_SIZE }}
