@@ -321,12 +321,6 @@
       "source_file": "daily-costs.json",
       "total_points_tracked": 44
     },
-    "summary": {
-      "last_successful_push": "2026-07-23T17:23:42.513851+00:00",
-      "metric_count": 9,
-      "sha256": "d3d033e1ec3dff70bce92522aea4d13b6a14cb11a6e9b27a4ace2a11c6ad798a",
-      "source_file": "summary.json"
-    }
   },
   "updated_at": "2026-07-23T18:35:31.611384+00:00"
 }
