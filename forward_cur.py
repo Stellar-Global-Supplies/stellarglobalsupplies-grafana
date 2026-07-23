@@ -79,6 +79,35 @@ RUN_TS_MS = int(time.time() * 1000)
 CUR_STATE_FILE = os.environ.get("CUR_STATE_FILE", "cur-state.json")
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Snapshot staleness refresh
+# ─────────────────────────────────────────────────────────────────────────────
+# Snapshot sources (summary, costs-by-tag) are only re-pushed when their
+# content hash changes. If a value genuinely doesn't move for a few runs in a
+# row (e.g. no new tagged/untagged spend that day), the whole-file dedup keeps
+# skipping it — and since New Relic silently drops gauge points older than
+# 48h, the metric's last real datapoint eventually ages out and the dashboard
+# panel goes blank, even though the value itself is still accurate.
+#
+# To prevent that, we force a refresh push (same value, new timestamp) once
+# the last successful push is older than SNAPSHOT_STALE_REFRESH_HOURS, even if
+# the content hash is unchanged. Default 20h keeps a daily-cron job's data
+# comfortably inside the 48h window with margin for a missed/delayed run.
+SNAPSHOT_STALE_REFRESH_HOURS = float(os.environ.get("SNAPSHOT_STALE_REFRESH_HOURS", "24"))
+
+
+def _is_stale(last_push_iso: str | None, hours: float) -> bool:
+    """True if last_push_iso is missing, unparsable, or older than `hours`."""
+    if not last_push_iso:
+        return True
+    try:
+        last = datetime.fromisoformat(last_push_iso)
+    except ValueError:
+        return True
+    if last.tzinfo is None:
+        last = last.replace(tzinfo=timezone.utc)
+    return (datetime.now(timezone.utc) - last).total_seconds() > hours * 3600
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Persistent deduplication state
 # ─────────────────────────────────────────────────────────────────────────────
 # Strategy:
@@ -537,12 +566,21 @@ def main():
         content_hash  = _normalise_snapshot(data)
         source_st     = sources_state.setdefault(source_name, {})
         previous_hash = source_st.get("sha256")
+        last_push     = source_st.get("last_successful_push")
+        unchanged     = content_hash == previous_hash
+        stale         = _is_stale(last_push, SNAPSHOT_STALE_REFRESH_HOURS)
 
-        if content_hash == previous_hash:
-            logger.info("%s costs unchanged (normalised sha256=%s) — skipping",
-                        source_name, content_hash[:12])
+        if unchanged and not stale:
+            logger.info("%s costs unchanged (normalised sha256=%s) and last pushed "
+                        "%s (< %.0fh ago) — skipping",
+                        source_name, content_hash[:12], last_push, SNAPSHOT_STALE_REFRESH_HOURS)
             stats["skipped_unchanged"] += 1
             continue
+
+        if unchanged and stale:
+            logger.info("%s costs unchanged but last push was %s (> %.0fh ago) — "
+                        "refreshing timestamp so the metric doesn't age out of retention",
+                        source_name, last_push or "never", SNAPSHOT_STALE_REFRESH_HOURS)
 
         metrics = collector(data)
         if not metrics:
