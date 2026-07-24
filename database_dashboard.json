@@ -1,0 +1,435 @@
+{
+  "name": "Stellar Global Supplies Database Dashboard",
+  "description": "Supabase Postgres metrics \u2014 connections, table stats, bgwriter activity, and slow queries",
+  "permissions": "PUBLIC_READ_ONLY",
+  "pages": [
+    {
+      "guid": "ODMxNDMyMXxWSVp8REFTSEJPQVJEfDMyNjYwMDM",
+      "name": "Supabase",
+      "description": "Supabase Postgres metrics collected hourly via GitHub Actions",
+      "widgets": [
+        {
+          "id": "46694549",
+          "title": "DB Size (bytes)",
+          "layout": {
+            "column": 1,
+            "row": 1,
+            "width": 3,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT latest(`supabase.db.size_bytes`) AS 'DB Size (bytes)' FROM Metric WHERE `service.name` = 'supabase-monitor' SINCE 2 hours ago"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46694550",
+          "title": "Total Connections",
+          "layout": {
+            "column": 4,
+            "row": 1,
+            "width": 3,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT latest(`supabase.connections.total`) AS 'Total Connections' FROM Metric WHERE `service.name` = 'supabase-monitor' SINCE 2 hours ago"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46694551",
+          "title": "Active Connections",
+          "layout": {
+            "column": 7,
+            "row": 1,
+            "width": 3,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT latest(`supabase.connections.by_state`) AS 'Active' FROM Metric WHERE `service.name` = 'supabase-monitor' AND state = 'active' SINCE 2 hours ago"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46694552",
+          "title": "Idle in Transaction",
+          "layout": {
+            "column": 10,
+            "row": 1,
+            "width": 3,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT latest(`supabase.connections.by_state`) AS 'Idle in Txn' FROM Metric WHERE `service.name` = 'supabase-monitor' AND state = 'idle_in_transaction' SINCE 2 hours ago"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46694553",
+          "title": "Connections by State (last 24h)",
+          "layout": {
+            "column": 1,
+            "row": 4,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "legend": {
+              "enabled": true
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT latest(`supabase.connections.by_state`) FROM Metric WHERE `service.name` = 'supabase-monitor' FACET state SINCE 24 hours ago TIMESERIES AUTO"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46694554",
+          "title": "DB Size Over Time (last 7 days)",
+          "layout": {
+            "column": 7,
+            "row": 4,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.area"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT latest(`supabase.db.size_bytes`) AS 'DB Size (bytes)' FROM Metric WHERE `service.name` = 'supabase-monitor' SINCE 7 days ago TIMESERIES AUTO"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46694555",
+          "title": "Live Rows per Table",
+          "layout": {
+            "column": 1,
+            "row": 7,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.bar"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT latest(`supabase.table.live_rows`) FROM Metric WHERE `service.name` = 'supabase-monitor' FACET table_name SINCE 2 hours ago"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46694556",
+          "title": "Dead Rows per Table",
+          "layout": {
+            "column": 7,
+            "row": 7,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.bar"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT latest(`supabase.table.dead_rows`) FROM Metric WHERE `service.name` = 'supabase-monitor' FACET table_name SINCE 2 hours ago"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46694557",
+          "title": "Rows Inserted per Table (last 24h)",
+          "layout": {
+            "column": 1,
+            "row": 10,
+            "width": 4,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "legend": {
+              "enabled": true
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT sum(`supabase.table.rows_inserted`) FROM Metric WHERE `service.name` = 'supabase-monitor' FACET table_name SINCE 24 hours ago TIMESERIES AUTO"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46694558",
+          "title": "Rows Updated per Table (last 24h)",
+          "layout": {
+            "column": 5,
+            "row": 10,
+            "width": 4,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "legend": {
+              "enabled": true
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT sum(`supabase.table.rows_updated`) FROM Metric WHERE `service.name` = 'supabase-monitor' FACET table_name SINCE 24 hours ago TIMESERIES AUTO"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46694559",
+          "title": "Rows Deleted per Table (last 24h)",
+          "layout": {
+            "column": 9,
+            "row": 10,
+            "width": 4,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "legend": {
+              "enabled": true
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT sum(`supabase.table.rows_deleted`) FROM Metric WHERE `service.name` = 'supabase-monitor' FACET table_name SINCE 24 hours ago TIMESERIES AUTO"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46694560",
+          "title": "Table Size (bytes)",
+          "layout": {
+            "column": 1,
+            "row": 13,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.bar"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT latest(`supabase.table.total_size_bytes`) FROM Metric WHERE `service.name` = 'supabase-monitor' FACET table_name SINCE 2 hours ago"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46694561",
+          "title": "Sequential vs Index Scans per Table",
+          "layout": {
+            "column": 7,
+            "row": 13,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.bar"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT sum(`supabase.table.seq_scans`) AS 'Seq Scans', sum(`supabase.table.idx_scans`) AS 'Index Scans' FROM Metric WHERE `service.name` = 'supabase-monitor' FACET table_name SINCE 24 hours ago"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46694562",
+          "title": "BGWriter \u2014 Checkpoints (last 24h)",
+          "layout": {
+            "column": 1,
+            "row": 16,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT sum(`supabase.bgwriter.checkpoints_timed`) AS 'Timed', sum(`supabase.bgwriter.checkpoints_req`) AS 'Requested' FROM Metric WHERE `service.name` = 'supabase-monitor' SINCE 24 hours ago TIMESERIES AUTO"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46694563",
+          "title": "BGWriter \u2014 Buffer Activity (last 24h)",
+          "layout": {
+            "column": 7,
+            "row": 16,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT sum(`supabase.bgwriter.buffers_checkpoint`) AS 'Checkpoint', sum(`supabase.bgwriter.buffers_clean`) AS 'Clean', sum(`supabase.bgwriter.buffers_backend`) AS 'Backend', sum(`supabase.bgwriter.buffers_alloc`) AS 'Allocated' FROM Metric WHERE `service.name` = 'supabase-monitor' SINCE 24 hours ago TIMESERIES AUTO"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46694564",
+          "title": "Top 10 Slowest Queries \u2014 Mean Exec Time (ms)",
+          "layout": {
+            "column": 1,
+            "row": 19,
+            "width": 12,
+            "height": 4
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.table"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT latest(`supabase.statements.mean_exec_time_ms`) AS 'Mean (ms)', sum(`supabase.statements.calls`) AS 'Calls', sum(`supabase.statements.rows`) AS 'Rows' FROM Metric WHERE `service.name` = 'supabase-monitor' FACET query SINCE 24 hours ago LIMIT 10"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46694565",
+          "title": "Collector Run Log (last 24h)",
+          "layout": {
+            "column": 1,
+            "row": 23,
+            "width": 12,
+            "height": 4
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.table"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT timestamp, message, sent, failed, duration_s, total_collected FROM Log WHERE `service.name` = 'supabase-monitor' AND logtype = 'supabase_monitor_run' SINCE 24 hours ago LIMIT 50"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "variables": []
+}

@@ -1,0 +1,1066 @@
+{
+  "name": "Stellar Global Supplies AWS Dashboard",
+  "description": "AWS service health: API Gateway, Lambda, S3, DynamoDB, Logs, Step Functions \u2014 forwarded via GitHub Actions to New Relic",
+  "permissions": "PUBLIC_READ_ONLY",
+  "pages": [
+    {
+      "guid": "ODMxNDMyMXxWSVp8REFTSEJPQVJEfDMyNjU5OTg",
+      "name": "API Gateway/Lambda",
+      "description": "High-level AWS health across all services",
+      "widgets": [
+        {
+          "id": "46694507",
+          "title": "Lambda \u2014 Invocations (last 24h)",
+          "layout": {
+            "column": 1,
+            "row": 1,
+            "width": 4,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "legend": {
+              "enabled": true
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT sum(`aws.lambda.Invocations.Sum`) FROM Metric FACET function_name SINCE 24 hours ago TIMESERIES AUTO"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            }
+          }
+        },
+        {
+          "id": "46694508",
+          "title": "Lambda \u2014 Errors (last 24h)",
+          "layout": {
+            "column": 5,
+            "row": 1,
+            "width": 4,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "legend": {
+              "enabled": true
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT sum(`aws.lambda.Errors.Sum`) FROM Metric FACET function_name SINCE 24 hours ago TIMESERIES AUTO"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            }
+          }
+        },
+        {
+          "id": "46694509",
+          "title": "Lambda \u2014 Error Rate %",
+          "layout": {
+            "column": 9,
+            "row": 1,
+            "width": 4,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.bar"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT sum(`aws.lambda.Errors.Sum`) / sum(`aws.lambda.Invocations.Sum`) * 100 AS 'Error Rate %' FROM Metric FACET function_name SINCE 24 hours ago"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46694510",
+          "title": "Lambda \u2014 Avg Duration (ms)",
+          "layout": {
+            "column": 1,
+            "row": 4,
+            "width": 4,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "legend": {
+              "enabled": true
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT average(`aws.lambda.Duration.Average`) FROM Metric FACET function_name SINCE 24 hours ago TIMESERIES AUTO"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46694511",
+          "title": "Lambda \u2014 Throttles",
+          "layout": {
+            "column": 5,
+            "row": 4,
+            "width": 4,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT sum(`aws.lambda.Throttles.Sum`) FROM Metric FACET function_name SINCE 24 hours ago TIMESERIES AUTO"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46694512",
+          "title": "Lambda \u2014 Concurrent Executions (max)",
+          "layout": {
+            "column": 9,
+            "row": 4,
+            "width": 4,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.area"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT max(`aws.lambda.ConcurrentExecutions.Maximum`) FROM Metric FACET function_name SINCE 24 hours ago TIMESERIES AUTO"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46694513",
+          "title": "API Gateway \u2014 Request Count",
+          "layout": {
+            "column": 1,
+            "row": 7,
+            "width": 4,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT sum(`aws.apigateway.Count.Sum`) FROM Metric FACET api_id SINCE 24 hours ago TIMESERIES AUTO"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46694514",
+          "title": "API Gateway \u2014 4XX Errors",
+          "layout": {
+            "column": 5,
+            "row": 7,
+            "width": 4,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT sum(`aws.apigateway.4XXError.Sum`) FROM Metric FACET api_id SINCE 24 hours ago TIMESERIES AUTO"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46694515",
+          "title": "API Gateway \u2014 5XX Errors",
+          "layout": {
+            "column": 9,
+            "row": 7,
+            "width": 4,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT sum(`aws.apigateway.5XXError.Sum`) FROM Metric FACET api_id SINCE 24 hours ago TIMESERIES AUTO"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46694516",
+          "title": "API Gateway \u2014 Latency (ms)",
+          "layout": {
+            "column": 1,
+            "row": 10,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT average(`aws.apigateway.Latency.Average`) FROM Metric FACET api_id SINCE 24 hours ago TIMESERIES AUTO"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46694517",
+          "title": "API Gateway \u2014 Integration Latency (ms)",
+          "layout": {
+            "column": 7,
+            "row": 10,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT average(`aws.apigateway.IntegrationLatency.Average`) FROM Metric FACET api_id SINCE 24 hours ago TIMESERIES AUTO"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "guid": "ODMxNDMyMXxWSVp8REFTSEJPQVJEfDMyNjU5OTk",
+      "name": "S3",
+      "description": "S3 bucket storage (direct enumeration) and request metrics (24h)",
+      "widgets": [
+        {
+          "id": "46694518",
+          "title": "Bucket Size \u2014 Latest (bytes)  [direct enumeration]",
+          "layout": {
+            "column": 1,
+            "row": 1,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.bar"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT latest(`aws.s3.BucketSizeBytes.Direct`) FROM Metric FACET bucket SINCE 1 day ago"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46694519",
+          "title": "Total Objects per Bucket \u2014 Latest  [direct enumeration]",
+          "layout": {
+            "column": 7,
+            "row": 1,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.bar"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT latest(`aws.s3.NumberOfObjects.Direct`) FROM Metric FACET bucket SINCE 1 day ago"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46694520",
+          "title": "GET Requests (last 24h)",
+          "layout": {
+            "column": 1,
+            "row": 4,
+            "width": 4,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT sum(`aws.s3.GetRequests.Sum`) FROM Metric FACET bucket SINCE 24 hours ago TIMESERIES AUTO"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46694521",
+          "title": "PUT Requests (last 24h)",
+          "layout": {
+            "column": 5,
+            "row": 4,
+            "width": 4,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT sum(`aws.s3.PutRequests.Sum`) FROM Metric FACET bucket SINCE 24 hours ago TIMESERIES AUTO"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46694522",
+          "title": "DELETE Requests (last 24h)",
+          "layout": {
+            "column": 9,
+            "row": 4,
+            "width": 4,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT sum(`aws.s3.DeleteRequests.Sum`) FROM Metric FACET bucket SINCE 24 hours ago TIMESERIES AUTO"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46694523",
+          "title": "4xx Errors (last 24h)",
+          "layout": {
+            "column": 1,
+            "row": 7,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT sum(`aws.s3.4xxErrors.Sum`) FROM Metric FACET bucket SINCE 24 hours ago TIMESERIES AUTO"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46694524",
+          "title": "5xx Errors (last 24h)",
+          "layout": {
+            "column": 7,
+            "row": 7,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT sum(`aws.s3.5xxErrors.Sum`) FROM Metric FACET bucket SINCE 24 hours ago TIMESERIES AUTO"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "guid": "ODMxNDMyMXxWSVp8REFTSEJPQVJEfDMyNjYwMDA",
+      "name": "DynamoDB",
+      "description": "DynamoDB table capacity, item counts, and performance",
+      "widgets": [
+        {
+          "id": "46694525",
+          "title": "Consumed Read Capacity (last 24h)",
+          "layout": {
+            "column": 1,
+            "row": 1,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT sum(`aws.dynamodb.ConsumedReadCapacityUnits.Sum`) FROM Metric FACET table SINCE 24 hours ago TIMESERIES AUTO"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46694526",
+          "title": "Consumed Write Capacity (last 24h)",
+          "layout": {
+            "column": 7,
+            "row": 1,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT sum(`aws.dynamodb.ConsumedWriteCapacityUnits.Sum`) FROM Metric FACET table SINCE 24 hours ago TIMESERIES AUTO"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46694527",
+          "title": "Throttled Requests (last 24h)",
+          "layout": {
+            "column": 1,
+            "row": 4,
+            "width": 4,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT sum(`aws.dynamodb.ThrottledRequests.Sum`) FROM Metric FACET table SINCE 24 hours ago TIMESERIES AUTO"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46694528",
+          "title": "Read Throttle Events (last 24h)",
+          "layout": {
+            "column": 5,
+            "row": 4,
+            "width": 4,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT sum(`aws.dynamodb.ReadThrottleEvents.Sum`) FROM Metric FACET table SINCE 24 hours ago TIMESERIES AUTO"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46694529",
+          "title": "Write Throttle Events (last 24h)",
+          "layout": {
+            "column": 9,
+            "row": 4,
+            "width": 4,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT sum(`aws.dynamodb.WriteThrottleEvents.Sum`) FROM Metric FACET table SINCE 24 hours ago TIMESERIES AUTO"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46694530",
+          "title": "Successful Request Latency (ms)",
+          "layout": {
+            "column": 1,
+            "row": 7,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT average(`aws.dynamodb.SuccessfulRequestLatency.Average`) FROM Metric FACET table SINCE 24 hours ago TIMESERIES AUTO"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46694531",
+          "title": "System Errors",
+          "layout": {
+            "column": 7,
+            "row": 7,
+            "width": 3,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.bar"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT sum(`aws.dynamodb.SystemErrors.Sum`) FROM Metric FACET table SINCE 24 hours ago"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46694532",
+          "title": "User Errors",
+          "layout": {
+            "column": 10,
+            "row": 7,
+            "width": 3,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.bar"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT sum(`aws.dynamodb.UserErrors.Sum`) FROM Metric FACET table SINCE 24 hours ago"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46694533",
+          "title": "Provisioned vs Consumed Read Capacity",
+          "layout": {
+            "column": 1,
+            "row": 10,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT average(`aws.dynamodb.ProvisionedReadCapacityUnits.Average`) AS 'Provisioned Read', average(`aws.dynamodb.ConsumedReadCapacityUnits.Sum`) AS 'Consumed Read' FROM Metric FACET table SINCE 24 hours ago TIMESERIES AUTO"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46694534",
+          "title": "Provisioned vs Consumed Write Capacity",
+          "layout": {
+            "column": 7,
+            "row": 10,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT average(`aws.dynamodb.ProvisionedWriteCapacityUnits.Average`) AS 'Provisioned Write', average(`aws.dynamodb.ConsumedWriteCapacityUnits.Sum`) AS 'Consumed Write' FROM Metric FACET table SINCE 24 hours ago TIMESERIES AUTO"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "guid": "ODMxNDMyMXxWSVp8REFTSEJPQVJEfDMyNjYwMDE",
+      "name": "Logs",
+      "description": "CloudWatch logs forwarded from all log groups with log_level filtering",
+      "widgets": [
+        {
+          "id": "46694535",
+          "title": "Log Volume by Log Group",
+          "layout": {
+            "column": 1,
+            "row": 1,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.area"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT count(*) FROM Log WHERE forwarder = 'github-actions' FACET log_group SINCE 24 hours ago TIMESERIES AUTO"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46694536",
+          "title": "Total Log Events (24h)",
+          "layout": {
+            "column": 7,
+            "row": 1,
+            "width": 3,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT count(*) AS 'Total Events' FROM Log WHERE forwarder = 'github-actions' SINCE 24 hours ago"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46694537",
+          "title": "Unique Log Groups Seen",
+          "layout": {
+            "column": 10,
+            "row": 1,
+            "width": 3,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT uniqueCount(log_group) AS 'Log Groups' FROM Log WHERE forwarder = 'github-actions' SINCE 24 hours ago"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46694538",
+          "title": "Lambda Log Events (24h)",
+          "layout": {
+            "column": 1,
+            "row": 4,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT count(*) FROM Log WHERE forwarder = 'github-actions' AND log_group LIKE '/aws/lambda/%' FACET log_group SINCE 24 hours ago TIMESERIES AUTO"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46694539",
+          "title": "Error / Exception Log Lines (message-based fallback)",
+          "layout": {
+            "column": 7,
+            "row": 4,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT count(*) FROM Log WHERE forwarder = 'github-actions' AND (message LIKE '%ERROR%' OR message LIKE '%Exception%' OR message LIKE '%error%') FACET log_group SINCE 24 hours ago TIMESERIES AUTO"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46694540",
+          "title": "Recent Log Lines (with log_level)",
+          "layout": {
+            "column": 1,
+            "row": 7,
+            "width": 12,
+            "height": 5
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.table"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT timestamp, log_group, log_stream, log_level, message FROM Log WHERE forwarder = 'github-actions' SINCE 1 hour ago LIMIT 100"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "guid": "ODMxNDMyMXxWSVp8REFTSEJPQVJEfDMyNjYwMDI",
+      "name": "Step Functions",
+      "description": "AWS Step Functions state machine executions (last 24h)",
+      "widgets": [
+        {
+          "id": "46694541",
+          "title": "Executions Started (last 24h)",
+          "layout": {
+            "column": 1,
+            "row": 1,
+            "width": 4,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT sum(`aws.stepfunctions.ExecutionsStarted.Sum`) FROM Metric FACET state_machine_name SINCE 24 hours ago TIMESERIES AUTO"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46694542",
+          "title": "Executions Succeeded (last 24h)",
+          "layout": {
+            "column": 5,
+            "row": 1,
+            "width": 4,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT sum(`aws.stepfunctions.ExecutionsSucceeded.Sum`) FROM Metric FACET state_machine_name SINCE 24 hours ago TIMESERIES AUTO"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46694543",
+          "title": "Executions Failed (last 24h)",
+          "layout": {
+            "column": 9,
+            "row": 1,
+            "width": 4,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT sum(`aws.stepfunctions.ExecutionsFailed.Sum`) FROM Metric FACET state_machine_name SINCE 24 hours ago TIMESERIES AUTO"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46694544",
+          "title": "Execution Success Rate %",
+          "layout": {
+            "column": 1,
+            "row": 4,
+            "width": 4,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.bar"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT sum(`aws.stepfunctions.ExecutionsSucceeded.Sum`) / sum(`aws.stepfunctions.ExecutionsStarted.Sum`) * 100 AS 'Success Rate %' FROM Metric FACET state_machine_name SINCE 24 hours ago"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46694545",
+          "title": "Executions Aborted & Timed Out",
+          "layout": {
+            "column": 5,
+            "row": 4,
+            "width": 4,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.bar"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT sum(`aws.stepfunctions.ExecutionsAborted.Sum`) AS 'Aborted', sum(`aws.stepfunctions.ExecutionsTimedOut.Sum`) AS 'Timed Out' FROM Metric FACET state_machine_name SINCE 24 hours ago"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46694546",
+          "title": "Execution Throttled",
+          "layout": {
+            "column": 9,
+            "row": 4,
+            "width": 4,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT sum(`aws.stepfunctions.ExecutionThrottled.Sum`) FROM Metric FACET state_machine_name SINCE 24 hours ago TIMESERIES AUTO"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46694547",
+          "title": "Average Execution Time (ms)",
+          "layout": {
+            "column": 1,
+            "row": 7,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT average(`aws.stepfunctions.ExecutionTime.Average`) FROM Metric FACET state_machine_name SINCE 24 hours ago TIMESERIES AUTO"
+              }
+            ]
+          }
+        },
+        {
+          "id": "46694548",
+          "title": "Executions Summary (billboard)",
+          "layout": {
+            "column": 7,
+            "row": 7,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [
+                  8314321
+                ],
+                "query": "SELECT sum(`aws.stepfunctions.ExecutionsStarted.Sum`) AS 'Started', sum(`aws.stepfunctions.ExecutionsSucceeded.Sum`) AS 'Succeeded', sum(`aws.stepfunctions.ExecutionsFailed.Sum`) AS 'Failed', sum(`aws.stepfunctions.ExecutionsAborted.Sum`) AS 'Aborted', sum(`aws.stepfunctions.ExecutionsTimedOut.Sum`) AS 'Timed Out' FROM Metric SINCE 24 hours ago"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "variables": []
+}

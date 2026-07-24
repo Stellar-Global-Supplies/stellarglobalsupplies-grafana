@@ -1,8 +1,16 @@
-name: CloudWatch Logs → New Relic
+name: RETIRED-CloudWatch Logs → New Relic
+
+# ── RETIRED ──────────────────────────────────────────────────────────────
+# This workflow has been retired as of 2026-07-24.
+# All triggers are disabled — the workflow will not execute.
+# The file is kept for reference only.
+#
+# To re-enable, uncomment the schedule / workflow_dispatch blocks below.
+# ─────────────────────────────────────────────────────────────────────────
 
 on:
-  schedule:
-    - cron: "0 19 * * *"
+  # schedule:
+  #   - cron: "0 19 * * *"
   workflow_dispatch:
 
 concurrency:
